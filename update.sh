@@ -10,9 +10,9 @@ apt update && apt upgrade -y
 clear
 
 echo -e "${GREEN} your Vps updated!!!! ${NC}"
-
-
 echo -e "${YELLOW} installing packages.... ${NC}"
+sleep 3
+
 apt-get install -y software-properties-common ufw wget curl git socat cron busybox bash-completion locales nano apt-utils 
 
 
