@@ -1,8 +1,14 @@
 #!/bin/bash
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
-echo hello this is my first script
-read -p "Enter option number: " choice
-echo 1. update and upgrade the server
+echo 1. update and install needed packages.
+echo 2. install webserver.
+read -p "Enter your choice: " choice
+
 
 
 
@@ -13,7 +19,11 @@ echo 1. update and upgrade the server
 case $choice in  
 
 1) 
-echo "starting the update and upgrade process...."
-apt update && apt upgrade -y
+bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/update.sh)
+;;
+2)  
+bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/webserver_menu.sh)
+;;
+
 
 esac
