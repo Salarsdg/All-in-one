@@ -7,13 +7,12 @@ NC='\033[0m' # No Color
 
 clear
 echo -e "${YELLOW} Installing php and nginx .... ${NC}"
-sleep 10
+sleep 2
 apt-get install php
 apt install nginx
 sudo systemctl start nginx
 sudo systemctl enable nginx
-clear
-read -p " enter your domain for SSL and certificate : " domain
+read -p "Enter your domain: " domain
 
 sudo certbot --nginx -d "$domain" -d "$domain"
 
