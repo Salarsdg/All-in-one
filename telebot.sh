@@ -12,6 +12,7 @@ apt-get install php
 apt install nginx
 sudo systemctl start nginx
 sudo systemctl enable nginx
+apt install certbot python3-certbot-nginx -y
 read -p "Enter your domain: " domain
 
 
