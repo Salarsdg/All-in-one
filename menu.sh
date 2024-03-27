@@ -21,7 +21,7 @@ case $choice in
 1) 
 bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/update.sh)
 ;;
-2) 
+2)  bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/telebot.sh)
 
 
 esac
