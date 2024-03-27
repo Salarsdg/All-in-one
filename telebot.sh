@@ -13,8 +13,7 @@ apt install nginx
 sudo systemctl start nginx
 sudo systemctl enable nginx
 clear
-sleep 10
-read -p "${BLUE} enter your domain for SSL and certificate :  ${NC}" domain
+read -p " enter your domain for SSL and certificate : " domain
 
 sudo certbot --nginx -d "$domain" -d "$domain"
 
