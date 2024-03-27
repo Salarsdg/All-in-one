@@ -24,10 +24,14 @@ sudo ufw allow 'Apache Full'
 read -p "Enter your domain for SSL : " domain
 sudo certbot --apache -d $domain
 
-
+echo "<?php
+echo ALL IN ONE;
+?>
+" > "$location/index.php"
+clear
 echo -e "${YELLOW} DONE DONE DONE ${NC}"
 
-echo -e "${BLUE} You can access via HTTPs : https://$domain ${NC}"
+echo -e "${BLUE} You can access via HTTPs : https://$domain/index.php ${NC}"
 echo -e "${BLUE} your root location is : $location upload your files here with SFTP ${NC}"
 
 
