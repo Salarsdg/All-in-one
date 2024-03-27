@@ -14,6 +14,8 @@ sudo systemctl start nginx
 sudo systemctl enable nginx
 read -p "Enter your domain: " domain
 
+
+sudo certbot certonly --webroot -w /var/www/html -d "$domain"
 sudo certbot --nginx -d "$domain" -d "$domain"
 
 sleep 10
