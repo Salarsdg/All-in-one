@@ -23,7 +23,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/updat
 ;;
 2)  
 bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/telebot.sh)
-
+;;
 
 
 esac
