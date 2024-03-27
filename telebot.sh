@@ -16,7 +16,6 @@ apt install certbot python3-certbot-nginx -y
 read -p "Enter your domain: " domain
 
 
-sudo certbot certonly --webroot -w /var/www/html -d "$domain"
 sudo certbot --nginx -d "$domain" -d "$domain"
 
 sleep 10
