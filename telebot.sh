@@ -6,48 +6,30 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 clear
-echo -e "${YELLOW} Installing php and nginx .... ${NC}"
+echo -e "${YELLOW} Installing php and apache .... ${NC}"
 sleep 2
-apt-get install php
-apt install nginx
-sudo systemctl start nginx
-sudo systemctl enable nginx
-apt install certbot python3-certbot-nginx -y
-read -p "Enter your domain: " domain
+sudo apt install apache2
+sudo apt install php libapache2-mod-php php-mysql
+sudo ufw allow 80/tcp
+read -p "enter your root location ( default:/var/www/html ) :" location
+if [ -z "$location" ]; then
+    sudo chown -R www-data:www-data /var/www/html
+    sudo chmod -R 755 /var/www/html
+else
+   sudo chown -R www-data:www-data $location
+   sudo chmod -R 755 $location
+fi
+sudo apt install certbot python3-certbot-apache
+sudo ufw allow 'Apache Full'
+read -p "Enter your domain for SSL : " domain
+sudo certbot --apache -d $domain
 
 
-sudo certbot --nginx -d "$domain" -d "$domain"
+echo -e "${YELLOW} DONE DONE DONE ${NC}"
 
-sleep 10
+echo -e "${BLUE} You can access via HTTPs : https://$domain ${NC}"
+echo -e "${BLUE} your root location is : $location upload your files here with SFTP ${NC}"
 
-cat > "/etc/nginx/sites-available/$domain" <<EOF
-server {
-    listen 443 ssl;
-    server_name $domain;
 
-    ssl_certificate /etc/letsencrypt/live/$domain/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/$domain/privkey.pem;
 
-    # Additional SSL configurations (optional)
-
-    location / {
-        # Root directory of your website
-        root /var/www/html;
-        index index.php index.html index.htm;
-    }
-
-    location ~ \.php$ {
-        # Path to PHP-FPM socket
-        fastcgi_pass unix:/run/php/php7.4-fpm.sock;  # Adjust version if needed
-        fastcgi_index index.php;
-        include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-    }
-}
-EOF
-
-echo "NGINX configuration file created for $domain."
-
-sleep 10
-sudo nginx -s reload
-
+bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/main.sh)

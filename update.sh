@@ -13,10 +13,11 @@ echo -e "${GREEN} your Vps updated!!!! ${NC}"
 echo -e "${YELLOW} installing packages.... ${NC}"
 sleep 10
 
-apt-get install -y software-properties-common ufw wget curl git socat cron busybox bash-completion locales nano apt-utils certbot nginx php 
-
+apt-get install -y software-properties-common ufw wget curl git socat cron busybox bash-completion locales nano apt-utils certbot 
 
 
 echo -e "${GREEN} all packages installed. ${NC}"
+
+bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/main.sh)
 
 
