@@ -28,6 +28,7 @@ CONFIG_FILE="<VirtualHost *:80>
     CustomLog ${APACHE_LOG_DIR}/my_website_access.log combined
 </VirtualHost>
 "
+echo -e "$CONFIG_FILE" > /etc/apache2/sites-available/all_in_one.conf
 read -p "enter your root location ( default: /var/www/my_website | must type like : /var/www/your location ) :" location
 while [[ -z "$domain" ]]; do
     read -p "Enter your domain for SSL : " domain
