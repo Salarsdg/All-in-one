@@ -57,7 +57,7 @@ fi
 sudo a2ensite all_in_one.conf
 sudo a2enmod ssl
 sudo apt install certbot python3-certbot-apache
-sudo certbot --apache -d $domain -d www.$domain
+sudo certbot --apache -d $domain
 echo -e "${YELLOW} DONE DONE DONE ${NC}"
 
 echo -e "${BLUE} You can access via HTTPs : https://$domain/index.php ${NC}"
