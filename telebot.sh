@@ -12,7 +12,7 @@ sudo apt install apache2 php libapache2-mod-php
 sudo a2enmod php7.4
 sudo a2enmod rewrite
 root=""
-CONFIG_FILE="<VirtualHost *:80>
+config_file_content="<VirtualHost *:80>
     ServerName your_website.com
     ServerAlias www.your_website.com
 
@@ -28,7 +28,8 @@ CONFIG_FILE="<VirtualHost *:80>
     CustomLog ${APACHE_LOG_DIR}/my_website_access.log combined
 </VirtualHost>
 "
-sudo echo -e "$CONFIG_FILE" | sudo tee /etc/apache2/sites-available/all_in_one.conf >/dev/null
+config_file_address=" /etc/apache2/sites-available/all_in_one.conf"
+sudo echo -e "$config_file_content" | sudo tee $config_file_address >/dev/null
 read -p "enter your root location ( default: /var/www/my_website | must type like : /var/www/your location ) :" location
 while [[ -z "$domain" ]]; do
     read -p "Enter your domain for SSL : " domain
@@ -44,15 +45,15 @@ else
     root="$location"
     sudo mkdir -p $root
     sudo echo '<?php phpinfo(); ?>' | sudo tee $root/index.php > /dev/null
-    sudo sed -i "s|DocumentRoot /var/www/my_website|DocumentRoot $root|" "$CONFIG_FILE"
-    sudo sed -i "s|<Directory /var/www/my_website>|<Directory $root>|" "$CONFIG_FILE"
+    sudo sed -i "s|DocumentRoot /var/www/my_website|DocumentRoot $root|" "$config_file_address"
+    sudo sed -i "s|<Directory /var/www/my_website>|<Directory $root>|" "$config_file_address"
 fi
 
 if [ -n "$domain" ]; then
-    sudo sed -i "s|ServerName your_website.com|ServerName $domain|" "$CONFIG_FILE"
-    sudo sed -i "s|ServerAlias www.your_website.com|ServerAlias www.$domain>|" "$CONFIG_FILE"
+    sudo sed -i "s|ServerName your_website.com|ServerName $domain|" "$config_file_address"
+    sudo sed -i "s|ServerAlias www.your_website.com|ServerAlias www.$domain>|" "$config_file_address"
 fi
-sudo echo -e "$CONFIG_FILE" | sudo tee /etc/apache2/sites-available/all_in_one.conf >/dev/null
+sudo echo -e "$config_file_content" | sudo tee $config_file_address >/dev/null
 sudo a2ensite all_in_one.conf
 sudo a2enmod ssl
 sudo apt install certbot python3-certbot-apache
