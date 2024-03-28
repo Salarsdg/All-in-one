@@ -28,7 +28,7 @@ CONFIG_FILE="<VirtualHost *:80>
     CustomLog ${APACHE_LOG_DIR}/my_website_access.log combined
 </VirtualHost>
 "
-echo -e "$CONFIG_FILE" > /etc/apache2/sites-available/all_in_one.conf
+sudo echo -e "$CONFIG_FILE" | sudo tee /etc/apache2/sites-available/all_in_one.conf >/dev/null
 read -p "enter your root location ( default: /var/www/my_website | must type like : /var/www/your location ) :" location
 while [[ -z "$domain" ]]; do
     read -p "Enter your domain for SSL : " domain
@@ -51,7 +51,7 @@ if [ -n "$domain" ]; then
     sudo sed -i "s|ServerName your_website.com|ServerName $domain|" "$CONFIG_FILE"
     sudo sed -i "s|ServerAlias www.your_website.com|ServerAlias www.$domain>|" "$CONFIG_FILE"
 fi
-echo -e "$CONFIG_FILE" > /etc/apache2/sites-available/all_in_one.conf
+sudo echo -e "$CONFIG_FILE" | sudo tee /etc/apache2/sites-available/all_in_one.conf >/dev/null
 sudo a2ensite all_in_one.conf
 sudo a2enmod ssl
 sudo apt install certbot python3-certbot-apache
