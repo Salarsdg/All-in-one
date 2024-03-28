@@ -16,6 +16,7 @@ if [ -z "$location" ]; then
     sudo chown -R www-data:www-data /var/www/html
     sudo chmod -R 755 /var/www/html
 else
+   mkdir $location
    sudo chown -R www-data:www-data $location
    sudo chmod -R 755 $location
 fi
