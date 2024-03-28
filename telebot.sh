@@ -28,7 +28,8 @@ config_file_content="<VirtualHost *:80>
     CustomLog ${APACHE_LOG_DIR}/my_website_access.log combined
 </VirtualHost>
 "
-config_file_address=" /etc/apache2/sites-available/all_in_one.conf"
+config_file_address="/etc/apache2/sites-available/all_in_one.conf"
+sudo touch $config_file_address
 sudo echo -e "$config_file_content" | sudo tee $config_file_address >/dev/null
 read -p "enter your root location ( default: /var/www/my_website | must type like : /var/www/your location ) :" location
 while [[ -z "$domain" ]]; do
