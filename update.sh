@@ -6,7 +6,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 echo -e "${YELLOW} starting the update and upgrade process.... ${NC}"
-apt update && apt upgrade -y
+apt update 
 clear
 
 echo -e "${GREEN} your Vps updated!!!! ${NC}"
