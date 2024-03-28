@@ -31,7 +31,8 @@ config_file_content="<VirtualHost *:80>
 read -p "enter your site name : ( default: mysite ) :" sitename
 
 if [ -z "$sitename" ]; then
-    config_file_address="/etc/apache2/sites-available/mysite.conf"
+    sitename="mysite"
+    config_file_address="/etc/apache2/sites-available/$sitename.conf"
     sudo touch $config_file_address
     sudo echo -e "$config_file_content" | sudo tee $config_file_address >/dev/null
 
@@ -65,7 +66,7 @@ if [ -n "$domain" ]; then
     sudo sed -i "s|ServerAlias www.your_website.com|ServerAlias www.$domain>|" "$config_file_address"
 fi
 
-sudo a2ensite all_in_one.conf
+sudo a2ensite $sitename.conf
 sudo a2enmod ssl
 sudo apt install certbot python3-certbot-apache
 sudo certbot --apache -d $domain
