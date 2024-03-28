@@ -8,9 +8,7 @@ NC='\033[0m' # No Color
 clear
 echo -e "${YELLOW} Installing php and apache .... ${NC}"
 sleep 2
-sudo apt install apache2 php libapache2-mod-php
-sudo a2enmod php7.4
-sudo a2enmod rewrite
+sudo apt install php8.3 libapache2-mod-php8.3 php8.3-{common,mysql,xml,xmlrpc,curl,gd,imagick,cli,dev,mbstring,opcache,zip}
 root=""
 config_file_content="<VirtualHost *:80>
     ServerName your_website.com
