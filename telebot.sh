@@ -38,6 +38,7 @@ while [[ -z "$domain" ]]; do
 done
 if [ -z "$location" ]; then
     root="/var/www/my_website"
+    sudo mkdir -p $root
     sudo echo '<?php phpinfo(); ?>' | sudo tee $root/index.php > /dev/null
 else
     root="$location"
