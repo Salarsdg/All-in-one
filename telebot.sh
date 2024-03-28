@@ -32,8 +32,5 @@ clear
 echo -e "${YELLOW} DONE DONE DONE ${NC}"
 
 echo -e "${BLUE} You can access via HTTPs : https://$domain/index.php ${NC}"
-echo -e "${BLUE} your root location is : $location upload your files here with SFTP ${NC}"
 
-
-
-bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/main.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/menu.sh)

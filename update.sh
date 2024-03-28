@@ -18,6 +18,5 @@ apt-get install -y software-properties-common ufw wget curl git socat cron busyb
 
 echo -e "${GREEN} all packages installed. ${NC}"
 
-bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/main.sh)
-
+bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/menu.sh)
 
