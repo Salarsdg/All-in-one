@@ -41,7 +41,7 @@ if [ -z "$location" ]; then
     sudo echo '<?php phpinfo(); ?>' | sudo tee $root/index.php > /dev/null
 else
     root="$location"
-    sudo -p mkdir $root
+    sudo mkdir -p $root
     sudo echo '<?php phpinfo(); ?>' | sudo tee $root/index.php > /dev/null
     sudo sed -i "s|DocumentRoot /var/www/my_website|DocumentRoot $root|" "$CONFIG_FILE"
     sudo sed -i "s|<Directory /var/www/my_website>|<Directory $root>|" "$CONFIG_FILE"
