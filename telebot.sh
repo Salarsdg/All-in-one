@@ -8,28 +8,53 @@ NC='\033[0m' # No Color
 clear
 echo -e "${YELLOW} Installing php and apache .... ${NC}"
 sleep 2
-sudo apt install apache2
-sudo apt install php libapache2-mod-php php-mysql
-sudo ufw allow 80/tcp
-read -p "enter your root location ( default:/var/www/html ) :" location
-if [ -z "$location" ]; then
-    sudo chown -R www-data:www-data /var/www/html
-    sudo chmod -R 755 /var/www/html
-else
-   mkdir $location
-   sudo chown -R www-data:www-data $location
-   sudo chmod -R 755 $location
-fi
-sudo apt install certbot python3-certbot-apache
-sudo ufw allow 'Apache Full'
-read -p "Enter your domain for SSL : " domain
-sudo certbot --apache -d $domain
+sudo apt install apache2 php libapache2-mod-php
+sudo a2enmod php7.4
+sudo a2enmod rewrite
+root=""
+CONFIG_FILE="<VirtualHost *:80>
+    ServerName your_website.com
+    ServerAlias www.your_website.com
 
-echo "<?php
-echo ALL IN ONE;
-?>
-" > "$location/index.php"
-clear
+    DocumentRoot /var/www/my_website
+
+    <Directory /var/www/my_website>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    ErrorLog ${APACHE_LOG_DIR}/my_website_error.log
+    CustomLog ${APACHE_LOG_DIR}/my_website_access.log combined
+</VirtualHost>
+"
+read -p "enter your root location ( default: /var/www/my_website | must type like : /var/www/your location ) :" location
+while [[ -z "$domain" ]]; do
+    read -p "Enter your domain for SSL : " domain
+    if [[ -z "$domain" ]]; then
+        echo "domain can not be empty"
+    fi
+done
+if [ -z "$location" ]; then
+    root="/var/www/my_website"
+    sudo echo '<?php phpinfo(); ?>' | sudo tee $root/index.php > /dev/null
+else
+    root="$location"
+    sudo -p mkdir $root
+    sudo echo '<?php phpinfo(); ?>' | sudo tee $root/index.php > /dev/null
+    sudo sed -i "s|DocumentRoot /var/www/my_website|DocumentRoot $root|" "$CONFIG_FILE"
+    sudo sed -i "s|<Directory /var/www/my_website>|<Directory $root>|" "$CONFIG_FILE"
+fi
+
+if [ -n "$domain" ]; then
+    sudo sed -i "s|ServerName your_website.com|ServerName $domain|" "$CONFIG_FILE"
+    sudo sed -i "s|ServerAlias www.your_website.com|ServerAlias www.$domain>|" "$CONFIG_FILE"
+fi
+echo -e "$CONFIG_FILE" > /etc/apache2/sites-available/all_in_one.conf
+sudo a2ensite all_in_one.conf
+sudo a2enmod ssl
+sudo apt install certbot python3-certbot-apache
+sudo certbot --apache -d $domain -d www.$domain
 echo -e "${YELLOW} DONE DONE DONE ${NC}"
 
 echo -e "${BLUE} You can access via HTTPs : https://$domain/index.php ${NC}"
