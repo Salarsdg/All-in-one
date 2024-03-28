@@ -60,5 +60,3 @@ sudo certbot --apache -d $domain
 echo -e "${YELLOW} DONE DONE DONE ${NC}"
 
 echo -e "${BLUE} You can access via HTTPs : https://$domain/index.php ${NC}"
-
-bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/menu.sh)

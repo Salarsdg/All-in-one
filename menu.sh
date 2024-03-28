@@ -4,10 +4,10 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
-echo hello this is my first script
+
 echo 1. update and install needed packages.
-echo 2. install telegram bot.
-read -p "Enter option number: " choice
+echo 2. install webserver.
+read -p "Enter your choice: " choice
 
 
 
@@ -22,7 +22,7 @@ case $choice in
 bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/update.sh)
 ;;
 2)  
-bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/telebot.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/webserver_menu.sh)
 ;;
 
 
