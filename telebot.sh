@@ -53,7 +53,6 @@ if [ -n "$domain" ]; then
     sudo sed -i "s|ServerName your_website.com|ServerName $domain|" "$config_file_address"
     sudo sed -i "s|ServerAlias www.your_website.com|ServerAlias www.$domain>|" "$config_file_address"
 fi
-sudo echo -e "$config_file_content" | sudo tee $config_file_address >/dev/null
 sudo a2ensite all_in_one.conf
 sudo a2enmod ssl
 sudo apt install certbot python3-certbot-apache
