@@ -11,16 +11,18 @@ read -p "Enter your choise: " choice
 
 
 case $choice in  
-
-1) 
-bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/install_apache_phhp.sh)
-;;
+1)
+    bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/install_apache_phhp.sh)
+    ;;
 2)  
-bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/add_site.sh)
-;;
-
-
+    bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/add_site.sh)
+    ;;
 esac
 
+# پاک کردن پیام‌های راست‌چین
+echo ""
+echo ""
+echo ""
 
 bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/menu.sh)
+
