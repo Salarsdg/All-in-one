@@ -12,7 +12,7 @@ read -p "Enter your choise: " choice
 
 case $choice in  
 1)
-    bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/nstall_apache_php.sh)
+    bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/install_apache_php.sh)
     ;;
 2)  
     bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/add_site.sh)
