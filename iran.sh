@@ -11,9 +11,9 @@ sudo systemctl start systemd-networkd.service
 
 # Define the directories and file paths
 NETPLAN_DIR="/etc/netplan"
-NETPLAN_FILE="$NETPLAN_DIR/pdtun.yaml"
+NETPLAN_FILE="$NETPLAN_DIR/localip.yaml"
 SYSTEMD_DIR="/etc/systemd/network"
-SYSTEMD_FILE="$SYSTEMD_DIR/tun0.network"
+SYSTEMD_FILE="$SYSTEMD_DIR/localip.network"
 
 # Function to generate a random three-digit number
 generate_random_number() {
@@ -41,7 +41,7 @@ sudo bash -c "cat > $NETPLAN_FILE <<EOF
 network:
   version: 2
   tunnels:
-    tunnel01:
+    local:
       mode: sit
       local: $SERVER1_IPV4
       remote: $SERVER2_IPV4
