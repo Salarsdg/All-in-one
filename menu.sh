@@ -26,7 +26,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/updat
 2)  
 bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/webserver_menu.sh)
 ;;
-2)  
+3)  
 bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/ip-local-menu.sh)
 ;;
 
