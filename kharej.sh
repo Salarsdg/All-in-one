@@ -35,6 +35,12 @@ if [ ! -d "$NETPLAN_DIR" ]; then
     sudo mkdir -p "$NETPLAN_DIR"
 fi
 
+# Remove the netplan configuration file if it exists
+if [ -f "$NETPLAN_FILE" ]; then
+    echo "File $NETPLAN_FILE already exists. Removing it."
+    sudo rm -f "$NETPLAN_FILE"
+fi
+
 # Create the netplan configuration file
 echo "Creating file $NETPLAN_FILE."
 sudo bash -c "cat > $NETPLAN_FILE <<EOF
