@@ -8,7 +8,7 @@ NC='\033[0m' # No Color
 echo 1. update and install needed packages.
 echo 2. install webserver.
 echo 3. get ipv6 local
-
+echo 4. Backhaul tunnel
 read -p "Enter your choice: " choice
 
 
