@@ -3,7 +3,7 @@
 set -e
 
 echo "=============================="
-echo " GRE Tunnel Auto Setup"
+echo " GRE Netplan Setup Script"
 echo "=============================="
 
 # Must be run as root
@@ -12,13 +12,18 @@ if [[ "$EUID" -ne 0 ]]; then
   exit 1
 fi
 
-# Check if netplan exists, install if missing
+# Check netplan
 if ! command -v netplan >/dev/null 2>&1; then
-    echo "netplan not found, installing..."
+    echo "netplan not found. Installing..."
     apt update
     apt install -y netplan.io
-else
-    echo "netplan already installed"
+fi
+
+# Check systemd-networkd
+if ! systemctl is-active --quiet systemd-networkd; then
+    echo "ERROR: systemd-networkd is not running."
+    echo "Netplan GRE requires systemd-networkd."
+    exit 1
 fi
 
 # User input
@@ -26,10 +31,11 @@ read -p "Is this server IRAN or FOREIGN? (iran/foreign): " ROLE
 read -p "Public IP of IRAN server: " IR_IP
 read -p "Public IP of FOREIGN server: " FR_IP
 
-TUN="gre_auto"
+TUN_NAME="gre_auto"
 MTU="1480"
+NETPLAN_FILE="/etc/netplan/99-gre.yaml"
 
-# Assign tunnel IPs based on server role
+# Role logic
 if [[ "$ROLE" == "iran" ]]; then
     LOCAL_IP="$IR_IP"
     REMOTE_IP="$FR_IP"
@@ -43,49 +49,34 @@ else
     exit 1
 fi
 
-# Create GRE tunnel immediately (runtime)
-ip tunnel del $TUN 2>/dev/null || true
-ip tunnel add $TUN mode gre local $LOCAL_IP remote $REMOTE_IP ttl 255
-ip addr add $TUN_IP dev $TUN
-ip link set $TUN mtu $MTU
-ip link set $TUN up
+echo "Creating netplan GRE configuration..."
 
-echo "GRE tunnel is UP"
-
-# Create persistent GRE script (runs on every boot)
-cat <<EOF >/usr/local/bin/gre-auto.sh
-#!/bin/bash
-# This script is executed by systemd at boot
-ip tunnel add $TUN mode gre local $LOCAL_IP remote $REMOTE_IP ttl 255 || true
-ip addr add $TUN_IP dev $TUN || true
-ip link set $TUN mtu $MTU
-ip link set $TUN up
+# Create netplan config
+cat <<EOF > $NETPLAN_FILE
+network:
+  version: 2
+  renderer: networkd
+  tunnels:
+    $TUN_NAME:
+      mode: gre
+      local: $LOCAL_IP
+      remote: $REMOTE_IP
+      ttl: 255
+      mtu: $MTU
+      addresses:
+        - $TUN_IP
 EOF
 
-chmod +x /usr/local/bin/gre-auto.sh
+# Secure permissions
+chmod 600 $NETPLAN_FILE
+chown root:root $NETPLAN_FILE
 
-# Create systemd service
-cat <<EOF >/etc/systemd/system/gre-auto.service
-[Unit]
-Description=Persistent GRE Tunnel
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=oneshot
-ExecStart=/usr/local/bin/gre-auto.sh
-RemainAfterExit=yes
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
-systemctl enable gre-auto
-systemctl restart gre-auto
+echo "Applying netplan..."
+netplan generate
+netplan apply
 
 echo "=============================="
-echo " Setup completed successfully"
-echo " Tunnel interface: $TUN"
+echo " GRE tunnel configured via netplan"
+echo " Tunnel interface: $TUN_NAME"
 echo " Tunnel IP: $TUN_IP"
 echo "=============================="
