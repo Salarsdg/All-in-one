@@ -8,7 +8,7 @@ NC='\033[0m' # No Color
 echo 1. update and install needed packages.
 echo 2. install webserver.
 echo 3. get ipv6 local
-echo 4. Backhaul tunnel
+echo 4. get ipv4 local
 read -p "Enter your choice: " choice
 
 
@@ -29,6 +29,8 @@ bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/webse
 3)  
 bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/ip-local-menu.sh)
 ;;
-
+4)  
+bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/ipv4.sh)
+;;
 
 esac
