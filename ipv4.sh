@@ -2,81 +2,90 @@
 
 set -e
 
-echo "=============================="
-echo " GRE Netplan Setup Script"
-echo "=============================="
-
 # Must be run as root
-if [[ "$EUID" -ne 0 ]]; then
+if [ "$EUID" -ne 0 ]; then
   echo "Please run as root"
   exit 1
 fi
 
+# IPv4 validation function
+valid_ipv4() {
+  local ip=$1
+  [[ $ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || return 1
+  IFS='.' read -r o1 o2 o3 o4 <<< "$ip"
+  for o in $o1 $o2 $o3 $o4; do
+    ((o >= 0 && o <= 255)) || return 1
+  done
+  return 0
+}
+
+echo "=== GRE Netplan Auto Setup ==="
+
 # Check netplan
 if ! command -v netplan >/dev/null 2>&1; then
-    echo "netplan not found. Installing..."
-    apt update
-    apt install -y netplan.io
+  apt update
+  apt install -y netplan.io
 fi
 
-# Check systemd-networkd
-if ! systemctl is-active --quiet systemd-networkd; then
-    echo "ERROR: systemd-networkd is not running."
-    echo "Netplan GRE requires systemd-networkd."
-    exit 1
+# Ensure systemd-networkd
+systemctl unmask systemd-networkd.service || true
+systemctl enable systemd-networkd.service
+systemctl start systemd-networkd.service
+
+echo "Select server role:"
+echo "1) IRAN"
+echo "2) KHAREJ"
+read -p "Enter choice (1/2): " ROLE
+
+if [[ "$ROLE" != "1" && "$ROLE" != "2" ]]; then
+  echo "Invalid selection"
+  exit 1
 fi
 
-# User input
-read -p "Is this server IRAN or FOREIGN? (iran/foreign): " ROLE
-read -p "Public IP of IRAN server: " IR_IP
-read -p "Public IP of FOREIGN server: " FR_IP
+ROLE_NAME=$([ "$ROLE" == "1" ] && echo "iran" || echo "kharej")
 
-TUN_NAME="gre_auto"
-MTU="1480"
+# Ask for PUBLIC IPs (no default, must be valid)
+while true; do
+  read -p "Enter $ROLE_NAME PUBLIC IPv4: " LOCAL_PUB
+  valid_ipv4 "$LOCAL_PUB" && break
+  echo "Invalid IPv4. Try again."
+done
+
+while true; do
+  read -p "Enter REMOTE PUBLIC IPv4: " REMOTE_PUB
+  valid_ipv4 "$REMOTE_PUB" && break
+  echo "Invalid IPv4. Try again."
+done
+
+# GRE IP defaults
+if [ "$ROLE" == "1" ]; then
+  DEF_GRE="10.10.10.1/30"
+else
+  DEF_GRE="10.10.10.2/30"
+fi
+
+read -p "Enter local GRE IP [$DEF_GRE]: " LOCAL_GRE
+LOCAL_GRE=${LOCAL_GRE:-$DEF_GRE}
+
 NETPLAN_FILE="/etc/netplan/99-gre.yaml"
 
-# Role logic
-if [[ "$ROLE" == "iran" ]]; then
-    LOCAL_IP="$IR_IP"
-    REMOTE_IP="$FR_IP"
-    TUN_IP="10.10.10.1/30"
-elif [[ "$ROLE" == "foreign" ]]; then
-    LOCAL_IP="$FR_IP"
-    REMOTE_IP="$IR_IP"
-    TUN_IP="10.10.10.2/30"
-else
-    echo "Invalid role"
-    exit 1
-fi
-
-echo "Creating netplan GRE configuration..."
-
-# Create netplan config
-cat <<EOF > $NETPLAN_FILE
+cat > "$NETPLAN_FILE" <<EOF
 network:
   version: 2
   renderer: networkd
   tunnels:
-    $TUN_NAME:
+    gre1:
       mode: gre
-      local: $LOCAL_IP
-      remote: $REMOTE_IP
-      ttl: 255
-      mtu: $MTU
+      local: $LOCAL_PUB
+      remote: $REMOTE_PUB
       addresses:
-        - $TUN_IP
+        - $LOCAL_GRE
+      mtu: 1476
 EOF
 
-# Secure permissions
-chmod 600 $NETPLAN_FILE
-chown root:root $NETPLAN_FILE
+chmod 600 "$NETPLAN_FILE"
 
-echo "Applying netplan..."
 netplan generate
 netplan apply
 
-echo "=============================="
-echo " GRE tunnel configured via netplan"
-echo " Tunnel interface: $TUN_NAME"
-echo " Tunnel IP: $TUN_IP"
-echo "=============================="
+echo "=== GRE tunnel configured successfully on $ROLE_NAME ==="
