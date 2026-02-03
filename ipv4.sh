@@ -44,7 +44,7 @@ fi
 
 ROLE_NAME=$([ "$ROLE" == "1" ] && echo "iran" || echo "kharej")
 
-# Ask for PUBLIC IPs (no default, must be valid)
+# Ask for PUBLIC IPs (must be valid)
 while true; do
   read -p "Enter $ROLE_NAME PUBLIC IPv4: " LOCAL_PUB
   valid_ipv4 "$LOCAL_PUB" && break
@@ -69,6 +69,13 @@ LOCAL_GRE=${LOCAL_GRE:-$DEF_GRE}
 
 NETPLAN_FILE="/etc/netplan/99-gre.yaml"
 
+# Remove old config if exists
+if [ -f "$NETPLAN_FILE" ]; then
+  echo "Existing netplan GRE config found. Removing..."
+  rm -f "$NETPLAN_FILE"
+fi
+
+# Write new netplan config
 cat > "$NETPLAN_FILE" <<EOF
 network:
   version: 2
