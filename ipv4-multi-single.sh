@@ -48,7 +48,7 @@ ask_ipv4_cidr() {
 echo "GRE Netplan Setup"
 echo "-----------------"
 echo "1) Iran server"
-echo "2) Foreign server"
+echo "2) Kharej server"
 read -rp "Select server type (1/2): " SERVER_TYPE
 
 # ------------------ Public IP ------------------
