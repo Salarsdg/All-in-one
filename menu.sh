@@ -30,7 +30,7 @@ bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/webse
 bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/ip-local-menu.sh)
 ;;
 4)  
-bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/ipv4.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/Salarsdg/All-in-one/main/ipv4-multi-single.sh)
 ;;
 
 esac
