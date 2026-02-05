@@ -114,7 +114,6 @@ if [[ "$ROLE" == "2" ]]; then
     REMOTE_PUB=$(ask_remote_public_ip)
 
     read -rp "Enter LOCAL GRE IPv4 (example 10.10.10.2/30): " LOCAL_GRE
-    read -rp "Enter REMOTE GRE IPv4 (example 10.10.10.1): " REMOTE_GRE
 
     cat >> "$NETPLAN_FILE" <<EOF
     gre1:
