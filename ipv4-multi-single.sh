@@ -14,8 +14,21 @@ validate_ipv4() {
 }
 
 get_public_ip() {
-    curl -4 -s ifconfig.me || true
+    for svc in \
+        "https://api.ipify.org" \
+        "https://ipv4.icanhazip.com" \
+        "https://ifconfig.co/ip"; do
+
+        ip=$(curl -4 -s --max-time 3 "$svc" | tr -d '[:space:]')
+        if validate_ipv4 "$ip"; then
+            echo "$ip"
+            return
+        fi
+    done
+
+    echo ""
 }
+
 
 install_netplan() {
     command -v netplan >/dev/null 2>&1 || apt update && apt install -y netplan.io
@@ -30,10 +43,15 @@ fix_networkd() {
 ask_local_public_ip() {
     local detected
     detected=$(get_public_ip)
-    read -rp "Enter LOCAL public IPv4 (auto-detected: $detected) [Enter to use]: " ip
-    if [[ -z "$ip" ]]; then
-        ip="$detected"
+
+    if [[ -n "$detected" ]]; then
+        read -rp "Enter LOCAL public IPv4 (auto-detected: $detected) [Enter to use]: " ip
+        [[ -z "$ip" ]] && ip="$detected"
+    else
+        echo "Auto-detect failed. Please enter LOCAL public IPv4 manually."
+        read -rp "Enter LOCAL public IPv4: " ip
     fi
+
     validate_ipv4 "$ip" || { echo "Invalid IPv4"; exit 1; }
     echo "$ip"
 }
