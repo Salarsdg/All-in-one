@@ -1,10 +1,34 @@
 #!/bin/bash
 set -e
 
+NETPLAN_DIR="/etc/netplan"
 NETPLAN_FILE="/etc/netplan/99-gre.yaml"
 
-# ---------------- Functions ----------------
+# ---------------- Root check ----------------
+if [ "$EUID" -ne 0 ]; then
+  echo "ERROR: run this script as root"
+  exit 1
+fi
 
+# ---------------- Install requirements ----------------
+echo "Checking requirements..."
+
+if ! command -v netplan >/dev/null 2>&1; then
+  echo "Installing netplan.io..."
+  apt update -y
+  apt install -y netplan.io
+fi
+
+mkdir -p "$NETPLAN_DIR"
+
+echo "Ensuring systemd-networkd is enabled..."
+
+systemctl unmask systemd-networkd.service || true
+systemctl unmask systemd-networkd.socket || true
+systemctl enable systemd-networkd.service
+systemctl start systemd-networkd.service
+
+# ---------------- Helpers ----------------
 get_public_ip() {
   for svc in \
     "https://api.ipify.org" \
@@ -17,25 +41,26 @@ get_public_ip() {
 }
 
 ask_non_empty() {
-  local prompt=$1
-  local value
+  local v
   while true; do
-    read -rp "$prompt" value
-    [ -n "$value" ] && echo "$value" && return
+    read -rp "$1" v
+    [ -n "$v" ] && echo "$v" && return
     echo "ERROR: value cannot be empty"
   done
 }
 
-# ---------------- Role ----------------
-
+# ---------------- Role selection ----------------
+echo
 echo "GRE Netplan Setup"
 echo "-----------------"
 echo "1) Iran"
 echo "2) Kharej"
 read -rp "Select server role (1/2): " ROLE
 
-# ---------------- Iran ----------------
+# Remove old config
+[ -f "$NETPLAN_FILE" ] && rm -f "$NETPLAN_FILE"
 
+# ---------------- IRAN MODE ----------------
 if [ "$ROLE" == "1" ]; then
   echo
   echo "IRAN MODE (multi-kharej)"
@@ -48,11 +73,8 @@ if [ "$ROLE" == "1" ]; then
     IRAN_PUB=$(ask_non_empty "Enter IRAN public IPv4: ")
   fi
 
-  read -rp "How many kharej servers? (number): " COUNT
-  if ! [[ "$COUNT" =~ ^[0-9]+$ ]] || [ "$COUNT" -lt 1 ]; then
-    echo "ERROR: invalid number"
-    exit 1
-  fi
+  read -rp "How many kharej servers? " COUNT
+  [[ "$COUNT" =~ ^[0-9]+$ ]] || { echo "ERROR: invalid number"; exit 1; }
 
   cat > "$NETPLAN_FILE" <<EOF
 network:
@@ -63,7 +85,7 @@ EOF
 
   declare -a SUMMARY
 
-  for ((i=1; i<=COUNT; i++)); do
+  for ((i=1;i<=COUNT;i++)); do
     echo
     echo "Kharej #$i"
     KHAREJ_PUB=$(ask_non_empty "  Enter kharej public IPv4: ")
@@ -83,11 +105,9 @@ EOF
 
     SUMMARY+=(
 "Kharej #$i
-  Tunnel name       : gre$i
-  Iran public IPv4  : $IRAN_PUB
-  Kharej public IPv4: $KHAREJ_PUB
-  Kharej GRE IPv4   : $KHAREJ_GRE
-  Iran GRE IPv4     : $IRAN_GRE"
+  Tunnel name     : gre$i
+  Iran GRE IPv4   : $IRAN_GRE
+  Kharej GRE IPv4 : $KHAREJ_GRE"
     )
   done
 
@@ -95,25 +115,19 @@ EOF
   netplan apply
 
   echo
-  echo "======================================"
   echo "IRAN CONFIGURATION COMPLETED"
-  echo "======================================"
   for s in "${SUMMARY[@]}"; do
     echo
     echo "$s"
   done
 
-# ---------------- Kharej ----------------
-
+# ---------------- KHAREJ MODE ----------------
 elif [ "$ROLE" == "2" ]; then
   echo
-  echo "KHAREJ MODE (single GRE)"
+  echo "KHAREJ MODE"
 
   read -rp "Enter tunnel index (given by Iran): " IDX
-  if ! [[ "$IDX" =~ ^[0-9]+$ ]]; then
-    echo "ERROR: invalid index"
-    exit 1
-  fi
+  [[ "$IDX" =~ ^[0-9]+$ ]] || { echo "ERROR: invalid index"; exit 1; }
 
   AUTO_IP=$(get_public_ip)
   if [ -n "$AUTO_IP" ]; then
@@ -126,7 +140,6 @@ elif [ "$ROLE" == "2" ]; then
   IRAN_PUB=$(ask_non_empty "Enter IRAN public IPv4: ")
 
   KHAREJ_GRE="10.10.${IDX}.2/30"
-  IRAN_GRE="10.10.${IDX}.1/30"
 
   cat > "$NETPLAN_FILE" <<EOF
 network:
@@ -146,12 +159,8 @@ EOF
   netplan apply
 
   echo
-  echo "======================================"
   echo "KHAREJ CONFIGURATION COMPLETED"
-  echo "======================================"
-  echo "Tunnel name    : gre$IDX"
-  echo "Local GRE IPv4 : $KHAREJ_GRE"
-  echo "Remote GRE IPv4: $IRAN_GRE"
+  echo "Tunnel gre$IDX is up"
 
 else
   echo "ERROR: invalid selection"
