@@ -3,11 +3,7 @@ set -e
 
 NETPLAN_FILE="/etc/netplan/99-gre.yaml"
 
-# ------------------ Functions ------------------
-
-is_valid_ipv4_cidr() {
-  [[ $1 =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}/30$ ]]
-}
+# ---------------- Functions ----------------
 
 get_public_ip() {
   for svc in \
@@ -30,105 +26,134 @@ ask_non_empty() {
   done
 }
 
-ask_ipv4_cidr() {
-  local prompt=$1
-  local ip
-  while true; do
-    read -rp "$prompt" ip
-    if is_valid_ipv4_cidr "$ip"; then
-      echo "$ip"
-      return
-    fi
-    echo "ERROR: invalid format (example: 10.10.10.2/30)"
-  done
-}
-
-# ------------------ Start ------------------
+# ---------------- Role ----------------
 
 echo "GRE Netplan Setup"
 echo "-----------------"
-echo "1) Iran server"
-echo "2) Kharej server"
-read -rp "Select server type (1/2): " SERVER_TYPE
+echo "1) Iran"
+echo "2) Kharej"
+read -rp "Select server role (1/2): " ROLE
 
-# ------------------ Public IP ------------------
+# ---------------- Iran ----------------
 
-AUTO_IP=$(get_public_ip)
-
-if [ -n "$AUTO_IP" ]; then
-  read -rp "Enter LOCAL public IPv4 (auto-detected: $AUTO_IP) [Enter to use]: " LOCAL_PUB
-  LOCAL_PUB=${LOCAL_PUB:-$AUTO_IP}
-else
-  LOCAL_PUB=$(ask_non_empty "Enter LOCAL public IPv4 manually: ")
-fi
-
-REMOTE_PUB=$(ask_non_empty "Enter REMOTE public IPv4: ")
-
-# ------------------ GRE IP Logic ------------------
-
-if [ "$SERVER_TYPE" == "2" ]; then
+if [ "$ROLE" == "1" ]; then
   echo
-  echo "GRE local IP configuration:"
-  echo "1) Automatic (by index)"
-  echo "2) Manual"
-  read -rp "Select (1/2): " MODE
+  echo "IRAN MODE (multi-kharej)"
 
-  if [ "$MODE" == "1" ]; then
-    read -rp "Enter tunnel index (number): " IDX
-
-    IRAN_GRE="10.10.${IDX}.1/30"
-    FOREIGN_GRE="10.10.${IDX}.2/30"
-
-    echo
-    echo "GRE IPs will be configured as:"
-    echo "Local  (this server): $FOREIGN_GRE"
-    echo "Remote (Iran side) : $IRAN_GRE"
-    read -rp "Press Enter to continue..." _
-
-    LOCAL_GRE="$FOREIGN_GRE"
-    REMOTE_GRE="$IRAN_GRE"
-
+  AUTO_IP=$(get_public_ip)
+  if [ -n "$AUTO_IP" ]; then
+    read -rp "Enter IRAN public IPv4 (auto-detected: $AUTO_IP) [Enter to use]: " IRAN_PUB
+    IRAN_PUB=${IRAN_PUB:-$AUTO_IP}
   else
-    LOCAL_GRE=$(ask_ipv4_cidr "Enter LOCAL GRE IPv4 (example 10.10.10.2/30): ")
-    REMOTE_GRE=$(ask_ipv4_cidr "Enter REMOTE GRE IPv4 (example 10.10.10.1/30): ")
+    IRAN_PUB=$(ask_non_empty "Enter IRAN public IPv4: ")
   fi
 
-else
-  read -rp "Enter tunnel index (number): " IDX
+  read -rp "How many kharej servers? (number): " COUNT
+  if ! [[ "$COUNT" =~ ^[0-9]+$ ]] || [ "$COUNT" -lt 1 ]; then
+    echo "ERROR: invalid number"
+    exit 1
+  fi
 
-  LOCAL_GRE="10.10.${IDX}.1/30"
-  REMOTE_GRE="10.10.${IDX}.2/30"
-fi
-
-# ------------------ Netplan Write ------------------
-
-cat > "$NETPLAN_FILE" <<EOF
+  cat > "$NETPLAN_FILE" <<EOF
 network:
   version: 2
   renderer: networkd
   tunnels:
-    gre${IDX}:
+EOF
+
+  declare -a SUMMARY
+
+  for ((i=1; i<=COUNT; i++)); do
+    echo
+    echo "Kharej #$i"
+    KHAREJ_PUB=$(ask_non_empty "  Enter kharej public IPv4: ")
+
+    IRAN_GRE="10.10.${i}.1/30"
+    KHAREJ_GRE="10.10.${i}.2/30"
+
+    cat >> "$NETPLAN_FILE" <<EOF
+    gre$i:
       mode: gre
-      local: $LOCAL_PUB
-      remote: $REMOTE_PUB
+      local: $IRAN_PUB
+      remote: $KHAREJ_PUB
       addresses:
-        - $LOCAL_GRE
+        - $IRAN_GRE
       mtu: 1476
 EOF
 
-chmod 600 "$NETPLAN_FILE"
+    SUMMARY+=(
+"Kharej #$i
+  Tunnel name       : gre$i
+  Iran public IPv4  : $IRAN_PUB
+  Kharej public IPv4: $KHAREJ_PUB
+  Kharej GRE IPv4   : $KHAREJ_GRE
+  Iran GRE IPv4     : $IRAN_GRE"
+    )
+  done
 
-echo
-echo "Applying netplan configuration..."
-netplan apply
+  chmod 600 "$NETPLAN_FILE"
+  netplan apply
 
-# ------------------ Result ------------------
+  echo
+  echo "======================================"
+  echo "IRAN CONFIGURATION COMPLETED"
+  echo "======================================"
+  for s in "${SUMMARY[@]}"; do
+    echo
+    echo "$s"
+  done
 
-echo
-echo "SUCCESS: GRE tunnel configured"
-echo "-------------------------------"
-echo "Tunnel name       : gre${IDX}"
-echo "Local GRE IPv4    : $LOCAL_GRE"
-echo "Remote GRE IPv4   : $REMOTE_GRE"
-echo "Netplan file      : $NETPLAN_FILE"
-echo "-------------------------------"
+# ---------------- Kharej ----------------
+
+elif [ "$ROLE" == "2" ]; then
+  echo
+  echo "KHAREJ MODE (single GRE)"
+
+  read -rp "Enter tunnel index (given by Iran): " IDX
+  if ! [[ "$IDX" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: invalid index"
+    exit 1
+  fi
+
+  AUTO_IP=$(get_public_ip)
+  if [ -n "$AUTO_IP" ]; then
+    read -rp "Enter KHAREJ public IPv4 (auto-detected: $AUTO_IP) [Enter to use]: " KHAREJ_PUB
+    KHAREJ_PUB=${KHAREJ_PUB:-$AUTO_IP}
+  else
+    KHAREJ_PUB=$(ask_non_empty "Enter KHAREJ public IPv4: ")
+  fi
+
+  IRAN_PUB=$(ask_non_empty "Enter IRAN public IPv4: ")
+
+  KHAREJ_GRE="10.10.${IDX}.2/30"
+  IRAN_GRE="10.10.${IDX}.1/30"
+
+  cat > "$NETPLAN_FILE" <<EOF
+network:
+  version: 2
+  renderer: networkd
+  tunnels:
+    gre$IDX:
+      mode: gre
+      local: $KHAREJ_PUB
+      remote: $IRAN_PUB
+      addresses:
+        - $KHAREJ_GRE
+      mtu: 1476
+EOF
+
+  chmod 600 "$NETPLAN_FILE"
+  netplan apply
+
+  echo
+  echo "======================================"
+  echo "KHAREJ CONFIGURATION COMPLETED"
+  echo "======================================"
+  echo "Tunnel name    : gre$IDX"
+  echo "Local GRE IPv4 : $KHAREJ_GRE"
+  echo "Remote GRE IPv4: $IRAN_GRE"
+
+else
+  echo "ERROR: invalid selection"
+  exit 1
+fi
