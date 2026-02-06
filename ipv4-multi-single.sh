@@ -384,6 +384,7 @@ main_menu() {
   ensure_reqs
 
   while true; do
+    clear
     echo
     hr
     echo -e "${BLUE}GRE / Netplan - IPv4 Tunnel Manager${NC}"

@@ -248,6 +248,7 @@ delete_tunnel() {
 main_menu() {
   ensure_reqs
   while true; do
+    clear
     echo
     hr
     echo -e "${BLUE}IPv6 Local Manager (SIT)${NC}"

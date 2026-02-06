@@ -47,6 +47,7 @@ run_remote_safe(){
 require_root
 
 while true; do
+  clear
   title
   echo -e "${GREEN}1)${NC} System Optimize  (update + packages + sysctl + limits)"
   echo -e "${GREEN}2)${NC} IPv6 Local Manager (create/show/delete tunnel)"
