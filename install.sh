@@ -33,7 +33,6 @@ REQUIRED=(
   optimize.sh
   ipv4-multi-single.sh
   ipv6-local-manager.sh
-  README.md
 )
 
 # فایل‌های اختیاری (اگر نبود، نصب ادامه پیدا کنه)
