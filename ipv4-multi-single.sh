@@ -18,9 +18,30 @@ ok()   { echo -e "${GREEN}[✔] $*${NC}"; }
 info() { echo -e "${CYAN}[i] $*${NC}"; }
 warn() { echo -e "${YELLOW}[!] $*${NC}"; }
 
-# Trap with useful debug
-trap 'ec=$?; echo -e "'"${RED}"'[✘] Failed (exit='"$ec"') at line '"$LINENO"': '"${BASH_COMMAND}"''"${NC}"'" >&2; exit $ec' ERR
-[ "${EUID:-0}" -eq 0 ] || die "Run as root"
+# ✅ بهتر: هم خط هم دستور خراب رو نشون بده
+trap 'rc=$?; echo -e "\n${RED}[✘] Error on line $LINENO: ${YELLOW}$BASH_COMMAND${NC} ${RED}(exit=$rc)${NC}\n" >&2; exit $rc' ERR
+
+[ "$EUID" -eq 0 ] || die "Run as root"
+
+# ---------------- Requirements ----------------
+ensure_reqs() {
+  mkdir -p "$NETPLAN_DIR" "$NETPLAN_DIR/aio-backup"
+
+  if ! command -v netplan >/dev/null 2>&1; then
+    info "netplan not found. Installing netplan.io ..."
+    apt-get update -y
+    apt-get install -y netplan.io
+  fi
+
+  # netplan معمولاً با networkd بهتره
+  systemctl unmask systemd-networkd.service >/dev/null 2>&1 || true
+  systemctl unmask systemd-networkd.socket  >/dev/null 2>&1 || true
+  systemctl enable systemd-networkd.service >/dev/null 2>&1 || true
+  systemctl start  systemd-networkd.service >/dev/null 2>&1 || true
+
+  # ✅ چک writable بودن
+  touch "$NETPLAN_FILE" 2>/dev/null || die "Cannot write to $NETPLAN_FILE (check filesystem/permissions)"
+}
 
 # ---------------- Helpers ----------------
 valid_ipv4() { [[ "$1" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; }
@@ -28,138 +49,128 @@ valid_ipv4() { [[ "$1" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; }
 ask_ipv4() {
   local p="$1" d="${2:-}" v
   while true; do
-    if [ -n "$d" ]; then read -rp "$p [$d]: " v; v="${v:-$d}"
-    else read -rp "$p: " v; fi
-    valid_ipv4 "$v" && echo "$v" && return
+    if [ -n "$d" ]; then
+      read -rp "$p [$d]: " v; v="${v:-$d}"
+    else
+      read -rp "$p: " v
+    fi
+    valid_ipv4 "$v" && echo "$v" && return 0
     echo "Invalid IPv4"
   done
 }
 
 get_public_ip() {
-  command -v curl >/dev/null 2>&1 || return 0
-  curl -4 -s --max-time 5 https://api.ipify.org || true
+  curl -4 -s --max-time 5 https://api.ipify.org 2>/dev/null || true
 }
 
 backup_netplan() {
   mkdir -p "$NETPLAN_DIR/aio-backup"
-  [ -f "$NETPLAN_FILE" ] && cp "$NETPLAN_FILE" "$NETPLAN_DIR/aio-backup/99-gre.$(date +%s).bak"
-}
-
-# Decide whether to write version/renderer in our file (avoid conflicts)
-netplan_has_key_elsewhere() {
-  local key="$1"
-  shopt -s nullglob
-  local f
-  for f in "$NETPLAN_DIR"/*.yaml "$NETPLAN_DIR"/*.yml; do
-    [ "$f" = "$NETPLAN_FILE" ] && continue
-    grep -Eq "^[[:space:]]*$key:" "$f" && return 0
-  done
-  return 1
-}
-
-write_netplan_header() {
-  # If other netplan files already define these, don't duplicate to avoid conflicts
-  local need_version=1 need_renderer=1
-  netplan_has_key_elsewhere "version"  && need_version=0
-  netplan_has_key_elsewhere "renderer" && need_renderer=0
-
-  {
-    echo "network:"
-    if [ "$need_version" -eq 1 ]; then
-      echo "  version: 2"
-    fi
-    if [ "$need_renderer" -eq 1 ]; then
-      echo "  renderer: networkd"
-    fi
-    echo "  tunnels:"
-  } > "$NETPLAN_FILE"
-}
-
-apply_netplan_safe() {
-  command -v netplan >/dev/null 2>&1 || die "netplan command not found"
-  chmod 600 "$NETPLAN_FILE" || true
-
-  info "Validating netplan..."
-  if ! netplan generate 2>/tmp/netplan.err; then
-    echo -e "${RED}netplan generate failed:${NC}"
-    sed 's/^/  /' /tmp/netplan.err >&2 || true
-    die "Fix netplan conflict first (usually renderer/version duplicated in another file)."
+  if [ -f "$NETPLAN_FILE" ]; then
+    cp -f "$NETPLAN_FILE" "$NETPLAN_DIR/aio-backup/99-gre.$(date +%s).bak" || true
   fi
-
-  info "Applying netplan..."
-  netplan apply
-  ok "Netplan applied"
 }
 
-# ---------------- Show tunnels ----------------
+write_header() {
+  # اگر به هر دلیلی redirection fail بشه، همینجا معلوم میشه
+  cat > "$NETPLAN_FILE" <<EOF
+network:
+  version: 2
+  renderer: networkd
+  tunnels:
+EOF
+  chmod 600 "$NETPLAN_FILE"
+}
+
+# ---------------- Tunnel listing (for later use) ----------------
+list_tunnels_raw() {
+  # name|local|remote|addr
+  awk '
+  /^[[:space:]]{4}gre/ { name=$1; sub(":", "", name) }
+  /^[[:space:]]{6}local:/  { local=$2 }
+  /^[[:space:]]{6}remote:/ { remote=$2 }
+  /^[[:space:]]{8}-/ { addr=$2; print name "|" local "|" remote "|" addr }
+  ' "$NETPLAN_FILE"
+}
+
+list_tunnels_pretty() {
+  local i=1
+  list_tunnels_raw | while IFS='|' read -r name local remote addr; do
+    echo "[$i] $name"
+    echo "     Public : $local -> $remote"
+    echo "     Private: $addr"
+    echo
+    i=$((i+1))
+  done
+}
+
 show_tunnels() {
   hr
   echo -e "${BLUE}Show GRE tunnels${NC}"
   hr
+  [ -f "$NETPLAN_FILE" ] || { warn "No tunnels file: $NETPLAN_FILE"; return; }
 
-  if [ ! -f "$NETPLAN_FILE" ]; then
-    warn "No tunnels found"
-    return
-  fi
+  local total
+  total=$(list_tunnels_raw | wc -l || true)
+  [ "${total:-0}" -eq 0 ] && { warn "No tunnels found"; return; }
 
-  awk '
-  /^[[:space:]]{4}gre/ { name=$1; sub(":", "", name) }
-  /^[[:space:]]{6}local:/ { local=$2 }
-  /^[[:space:]]{6}remote:/ { remote=$2 }
-  /^[[:space:]]{8}-/ {
-    addr=$2
-    print "Tunnel:", name
-    print "  Public :", local, "->", remote
-    print "  Private:", addr
-    print ""
-  }' "$NETPLAN_FILE"
+  list_tunnels_pretty
 }
 
-# ---------------- Delete tunnels ----------------
 delete_tunnels() {
   hr
-  echo -e "${RED}Delete tunnels${NC}"
+  echo -e "${RED}Delete GRE tunnels${NC}"
   hr
-
   [ -f "$NETPLAN_FILE" ] || { warn "Nothing to delete"; return; }
 
-  echo "1) Delete ONE tunnel"
-  echo "2) Delete ALL tunnels"
-  echo "0) Back"
-  read -rp "Select: " d
+  mapfile -t TUNNELS < <(list_tunnels_raw)
+  local count="${#TUNNELS[@]}"
+  [ "$count" -eq 0 ] && { warn "No tunnels found"; return; }
 
-  case "$d" in
-    1)
-      read -rp "Tunnel name (e.g. gre1): " t
-      grep -q "^[[:space:]]*$t:" "$NETPLAN_FILE" || { warn "Tunnel not found"; return; }
+  list_tunnels_pretty
+
+  echo "[0] Cancel"
+  echo "[A] Delete ALL tunnels"
+  read -rp "Select tunnel number: " sel
+
+  case "$sel" in
+    0|"") return ;;
+    A|a)
       backup_netplan
-      awk -v t="    $t:" '
-        BEGIN{del=0}
-        $0==t {del=1; next}
-        del && /^[[:space:]]{4}gre/ {del=0}
-        !del {print}
-      ' "$NETPLAN_FILE" > /tmp/gre.tmp
-      mv /tmp/gre.tmp "$NETPLAN_FILE"
-      apply_netplan_safe
-      ok "Deleted $t"
-      ;;
-    2)
-      backup_netplan
-      # Keep only tunnels empty (no renderer/version duplication)
-      {
-        echo "network:"
-        echo "  tunnels: {}"
-      } > "$NETPLAN_FILE"
-      apply_netplan_safe
+      cat > "$NETPLAN_FILE" <<EOF
+network:
+  version: 2
+  renderer: networkd
+  tunnels: {}
+EOF
+      chmod 600 "$NETPLAN_FILE"
+      netplan apply
       ok "All tunnels deleted"
+      return
       ;;
-    0) return ;;
-    *) warn "Invalid choice" ;;
   esac
+
+  [[ "$sel" =~ ^[0-9]+$ ]] || { warn "Invalid selection"; return; }
+  (( sel >= 1 && sel <= count )) || { warn "Out of range"; return; }
+
+  local entry="${TUNNELS[$((sel-1))]}"
+  local tname="${entry%%|*}"
+
+  backup_netplan
+  awk -v t="    $tname:" '
+    BEGIN{del=0}
+    $0==t {del=1; next}
+    del && /^[[:space:]]{4}gre/ {del=0}
+    !del {print}
+  ' "$NETPLAN_FILE" > /tmp/gre.tmp
+
+  mv /tmp/gre.tmp "$NETPLAN_FILE"
+  chmod 600 "$NETPLAN_FILE"
+  netplan apply
+  ok "Deleted tunnel: $tname"
 }
 
 # ============================================================
-# 1) IRAN (multi kharej)
+# 1) IRAN (multi kharej)   => 10.10.x.1/30
 # ============================================================
 iran_multi_kharej() {
   clear; hr; echo "IRAN (multi kharej)"; hr
@@ -169,7 +180,7 @@ iran_multi_kharej() {
   [[ "$count" =~ ^[0-9]+$ ]] || die "Invalid number"
 
   backup_netplan
-  write_netplan_header
+  write_header
 
   for ((i=1;i<=count;i++)); do
     local kharej_pub
@@ -185,25 +196,28 @@ iran_multi_kharej() {
 EOF
   done
 
-  apply_netplan_safe
+  netplan apply
   ok "IRAN multi-kharej configured"
 }
 
 # ============================================================
-# 2) IRAN (single kharej)
+# 2) IRAN (single kharej)  => 10.20.idx.1/30
 # ============================================================
 iran_single_kharej() {
   clear; hr; echo "IRAN (single kharej)"; hr
   local idx iran_pub kharej_pub
   read -rp "Tunnel index: " idx
   [[ "$idx" =~ ^[0-9]+$ ]] || die "Invalid index"
+
   iran_pub="$(ask_ipv4 "Iran public IPv4" "$(get_public_ip)")"
   kharej_pub="$(ask_ipv4 "Kharej public IPv4")"
 
   backup_netplan
-  write_netplan_header
-
-  cat >> "$NETPLAN_FILE" <<EOF
+  cat > "$NETPLAN_FILE" <<EOF
+network:
+  version: 2
+  renderer: networkd
+  tunnels:
     gre$idx:
       mode: gre
       local: $iran_pub
@@ -212,13 +226,13 @@ iran_single_kharej() {
         - 10.20.$idx.1/30
       mtu: 1476
 EOF
-
-  apply_netplan_safe
+  chmod 600 "$NETPLAN_FILE"
+  netplan apply
   ok "IRAN single-kharej configured"
 }
 
 # ============================================================
-# 3) KHAREJ (multi iran)
+# 3) KHAREJ (multi iran)   => 10.20.x.2/30
 # ============================================================
 kharej_multi_iran() {
   clear; hr; echo "KHAREJ (multi iran)"; hr
@@ -228,7 +242,7 @@ kharej_multi_iran() {
   [[ "$count" =~ ^[0-9]+$ ]] || die "Invalid number"
 
   backup_netplan
-  write_netplan_header
+  write_header
 
   for ((i=1;i<=count;i++)); do
     local iran_pub
@@ -244,25 +258,28 @@ kharej_multi_iran() {
 EOF
   done
 
-  apply_netplan_safe
+  netplan apply
   ok "KHAREJ multi-iran configured"
 }
 
 # ============================================================
-# 4) KHAREJ (single iran)
+# 4) KHAREJ (single iran)  => 10.20.idx.2/30
 # ============================================================
 kharej_single_iran() {
   clear; hr; echo "KHAREJ (single iran)"; hr
   local idx kharej_pub iran_pub
   read -rp "Tunnel index: " idx
   [[ "$idx" =~ ^[0-9]+$ ]] || die "Invalid index"
+
   kharej_pub="$(ask_ipv4 "Kharej public IPv4" "$(get_public_ip)")"
   iran_pub="$(ask_ipv4 "Iran public IPv4")"
 
   backup_netplan
-  write_netplan_header
-
-  cat >> "$NETPLAN_FILE" <<EOF
+  cat > "$NETPLAN_FILE" <<EOF
+network:
+  version: 2
+  renderer: networkd
+  tunnels:
     gre$idx:
       mode: gre
       local: $kharej_pub
@@ -271,12 +288,14 @@ kharej_single_iran() {
         - 10.20.$idx.2/30
       mtu: 1476
 EOF
-
-  apply_netplan_safe
+  chmod 600 "$NETPLAN_FILE"
+  netplan apply
   ok "KHAREJ single-iran configured"
 }
 
 # ---------------- Menu ----------------
+ensure_reqs
+
 while true; do
   clear
   hr
@@ -303,5 +322,5 @@ while true; do
   esac
 
   echo
-  read -rp "Press Enter to return..." _
+  read -rp "Press Enter to return..." _ || true
 done
