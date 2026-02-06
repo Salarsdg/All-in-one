@@ -49,17 +49,14 @@ require_root
 while true; do
   title
   echo -e "${GREEN}1)${NC} System Optimize  (update + packages + sysctl + limits)"
-  echo -e "${GREEN}2)${NC} IPv6 Local Menu  (remote: ip-local-menu.sh)"
+  echo -e "${GREEN}2)${NC} IPv6 Local Manager (create/show/delete tunnel)"
   echo -e "${GREEN}3)${NC} IPv4 GRE Manager (create/show/delete tunnels)"
   echo -e "${GREEN}0)${NC} Exit"
   hr
   read -rp "Select: " choice
   case "${choice:-}" in
     1) run_local "$OPTIMIZE" ;;
-    2)
-       warn "Running remote IPv6 menu (CRLF-stripped)..."
-       run_remote_safe "https://raw.githubusercontent.com/Salarsdg/All-in-one/Stage/ip-local-menu.sh"
-       ;;
+    2) run_local "$SCRIPT_DIR/ipv6-local-manager.sh" ;;
     3) run_local "$IPV4" ;;
     0) exit 0 ;;
     *) warn "Invalid choice" ;;
