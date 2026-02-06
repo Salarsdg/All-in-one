@@ -14,11 +14,11 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-hr(){ printf "%b\n" "${BLUE}------------------------------------------------------------${NC}"; }
-die(){ echo -e "${RED}[✘] $*${NC}" >&2; exit 1; }
-ok(){  echo -e "${GREEN}[✔] $*${NC}"; }
-info(){echo -e "${CYAN}[i] $*${NC}"; }
-warn(){echo -e "${YELLOW}[!] $*${NC}"; }
+hr()   { printf "%b\n" "${BLUE}------------------------------------------------------------${NC}"; }
+die()  { echo -e "${RED}[✘] $*${NC}" >&2; exit 1; }
+ok()   { echo -e "${GREEN}[✔] $*${NC}"; }
+info() { echo -e "${CYAN}[i] $*${NC}"; }
+warn() { echo -e "${YELLOW}[!] $*${NC}"; }
 
 trap 'die "Error on line $LINENO"' ERR
 
@@ -28,15 +28,6 @@ if [ "${EUID:-$(id -u)}" -ne 0 ]; then
 fi
 
 # ---------------- Helpers ----------------
-ask_non_empty() {
-  local v
-  while true; do
-    read -rp "$1" v
-    [ -n "${v:-}" ] && echo "$v" && return 0
-    echo "ERROR: value cannot be empty"
-  done
-}
-
 valid_ipv4() {
   local ip="${1:-}"
   [[ "$ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || return 1
@@ -58,7 +49,6 @@ ask_ipv4() {
   done
 }
 
-# basic IPv6 validation (simple, not perfect but ok)
 valid_ipv6() {
   local ip="${1:-}"
   [[ "$ip" =~ ^[0-9a-fA-F:]+$ ]] || return 1
@@ -83,8 +73,7 @@ ensure_reqs() {
     apt install -y netplan.io
   fi
 
-  mkdir -p "$NETPLAN_DIR"
-  mkdir -p "$SYSTEMD_DIR"
+  mkdir -p "$NETPLAN_DIR" "$SYSTEMD_DIR"
 
   info "Ensuring systemd-networkd is enabled..."
   systemctl unmask systemd-networkd.service >/dev/null 2>&1 || true
@@ -101,7 +90,7 @@ backup_files() {
   [ -f "$SYSTEMD_FILE" ] && cp -f "$SYSTEMD_FILE" "$SYSTEMD_DIR/aio-backup/$(basename "$SYSTEMD_FILE").$ts.bak" && ok "Backup: $SYSTEMD_DIR/aio-backup/$(basename "$SYSTEMD_FILE").$ts.bak"
 }
 
-# ---------------- Show tunnels ----------------
+# ---------------- Show tunnel ----------------
 show_tunnel() {
   hr
   echo -e "${BLUE}Show IPv6 (SIT) tunnel${NC}"
@@ -154,7 +143,6 @@ create_iran() {
   local iran4 kharej4 iran6 kharej6
   iran4="$(ask_ipv4 "Enter IRAN public IPv4")"
   kharej4="$(ask_ipv4 "Enter KHAREJ public IPv4")"
-
   iran6="$(ask_ipv6 "Enter IRAN IPv6 (local on tunnel)")"
   kharej6="$(ask_ipv6 "Enter KHAREJ IPv6 (peer/gateway)")"
 
@@ -195,7 +183,6 @@ create_kharej() {
   local kharej4 iran4 kharej6 iran6
   kharej4="$(ask_ipv4 "Enter KHAREJ public IPv4")"
   iran4="$(ask_ipv4 "Enter IRAN public IPv4")"
-
   kharej6="$(ask_ipv6 "Enter KHAREJ IPv6 (local on tunnel)")"
   iran6="$(ask_ipv6 "Enter IRAN IPv6 (peer/gateway)")"
 
@@ -260,7 +247,6 @@ delete_tunnel() {
 
 main_menu() {
   ensure_reqs
-
   while true; do
     echo
     hr
