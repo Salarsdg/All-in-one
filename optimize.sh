@@ -10,7 +10,7 @@ CYAN='\033[0;36m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-hr() { printf "%b" "${BLUE}============================================================${NC}\n"; }
+hr() { printf "%b\n" "${BLUE}============================================================${NC}"; }
 info(){ echo -e "${CYAN}[i]${NC} $*"; }
 ok(){   echo -e "${GREEN}[✔]${NC} $*"; }
 warn(){ echo -e "${YELLOW}[!]${NC} $*"; }
@@ -25,14 +25,10 @@ exec > >(tee -a "$LOG_FILE") 2>&1
 
 trap 'die "Error on line $LINENO"' ERR
 
-# ---------------- Helpers ----------------
-have_cmd(){ command -v "$1" >/dev/null 2>&1; }
-
 apply_sysctl() {
   local conf="/etc/sysctl.d/99-all-in-one.conf"
   cat > "$conf" <<'SYSCTL'
 # All-in-one safe sysctl tuning
-# (Network tuning; generally safe for VPS)
 net.core.default_qdisc = fq
 net.ipv4.tcp_congestion_control = bbr
 
@@ -77,7 +73,6 @@ LIMITS
 }
 
 ensure_bbr_supported() {
-  # If BBR module exists, good. If not, still keep sysctl; kernel decides.
   if lsmod | grep -q '^tcp_bbr'; then
     ok "BBR module is loaded"
   else
@@ -91,10 +86,9 @@ cleanup_system() {
   apt-get autoclean -y >/dev/null 2>&1 || true
 }
 
-# ---------------- Main ----------------
 require_root
 
-clear
+clear || true
 hr
 echo -e "${BOLD}System Optimize${NC}  (Update + basic tuning)"
 hr
@@ -139,12 +133,5 @@ ok "Cleanup done"
 hr
 echo -e "${GREEN}Done.${NC}"
 echo "- Re-login recommended to fully apply limits"
-echo "- You can check: sysctl net.ipv4.tcp_congestion_control"
+echo "- Check: sysctl net.ipv4.tcp_congestion_control"
 hr
-
-# Return to menu if exists
-if [ -f "/opt/all-in-one/menu.sh" ]; then
-  bash /opt/all-in-one/menu.sh || true
-elif [ -f "./menu.sh" ]; then
-  bash ./menu.sh || true
-fi
