@@ -18,8 +18,9 @@ ok()   { echo -e "${GREEN}[✔] $*${NC}"; }
 info() { echo -e "${CYAN}[i] $*${NC}"; }
 warn() { echo -e "${YELLOW}[!] $*${NC}"; }
 
-trap 'die "Error on line $LINENO"' ERR
-[ "$EUID" -eq 0 ] || die "Run as root"
+# Trap with useful debug
+trap 'ec=$?; echo -e "'"${RED}"'[✘] Failed (exit='"$ec"') at line '"$LINENO"': '"${BASH_COMMAND}"''"${NC}"'" >&2; exit $ec' ERR
+[ "${EUID:-0}" -eq 0 ] || die "Run as root"
 
 # ---------------- Helpers ----------------
 valid_ipv4() { [[ "$1" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; }
@@ -35,12 +36,59 @@ ask_ipv4() {
 }
 
 get_public_ip() {
+  command -v curl >/dev/null 2>&1 || return 0
   curl -4 -s --max-time 5 https://api.ipify.org || true
 }
 
 backup_netplan() {
   mkdir -p "$NETPLAN_DIR/aio-backup"
   [ -f "$NETPLAN_FILE" ] && cp "$NETPLAN_FILE" "$NETPLAN_DIR/aio-backup/99-gre.$(date +%s).bak"
+}
+
+# Decide whether to write version/renderer in our file (avoid conflicts)
+netplan_has_key_elsewhere() {
+  local key="$1"
+  shopt -s nullglob
+  local f
+  for f in "$NETPLAN_DIR"/*.yaml "$NETPLAN_DIR"/*.yml; do
+    [ "$f" = "$NETPLAN_FILE" ] && continue
+    grep -Eq "^[[:space:]]*$key:" "$f" && return 0
+  done
+  return 1
+}
+
+write_netplan_header() {
+  # If other netplan files already define these, don't duplicate to avoid conflicts
+  local need_version=1 need_renderer=1
+  netplan_has_key_elsewhere "version"  && need_version=0
+  netplan_has_key_elsewhere "renderer" && need_renderer=0
+
+  {
+    echo "network:"
+    if [ "$need_version" -eq 1 ]; then
+      echo "  version: 2"
+    fi
+    if [ "$need_renderer" -eq 1 ]; then
+      echo "  renderer: networkd"
+    fi
+    echo "  tunnels:"
+  } > "$NETPLAN_FILE"
+}
+
+apply_netplan_safe() {
+  command -v netplan >/dev/null 2>&1 || die "netplan command not found"
+  chmod 600 "$NETPLAN_FILE" || true
+
+  info "Validating netplan..."
+  if ! netplan generate 2>/tmp/netplan.err; then
+    echo -e "${RED}netplan generate failed:${NC}"
+    sed 's/^/  /' /tmp/netplan.err >&2 || true
+    die "Fix netplan conflict first (usually renderer/version duplicated in another file)."
+  fi
+
+  info "Applying netplan..."
+  netplan apply
+  ok "Netplan applied"
 }
 
 # ---------------- Show tunnels ----------------
@@ -92,18 +140,17 @@ delete_tunnels() {
         !del {print}
       ' "$NETPLAN_FILE" > /tmp/gre.tmp
       mv /tmp/gre.tmp "$NETPLAN_FILE"
-      netplan apply
+      apply_netplan_safe
       ok "Deleted $t"
       ;;
     2)
       backup_netplan
-      cat > "$NETPLAN_FILE" <<EOF
-network:
-  version: 2
-  renderer: networkd
-  tunnels: {}
-EOF
-      netplan apply
+      # Keep only tunnels empty (no renderer/version duplication)
+      {
+        echo "network:"
+        echo "  tunnels: {}"
+      } > "$NETPLAN_FILE"
+      apply_netplan_safe
       ok "All tunnels deleted"
       ;;
     0) return ;;
@@ -122,12 +169,7 @@ iran_multi_kharej() {
   [[ "$count" =~ ^[0-9]+$ ]] || die "Invalid number"
 
   backup_netplan
-  cat > "$NETPLAN_FILE" <<EOF
-network:
-  version: 2
-  renderer: networkd
-  tunnels:
-EOF
+  write_netplan_header
 
   for ((i=1;i<=count;i++)); do
     local kharej_pub
@@ -143,8 +185,7 @@ EOF
 EOF
   done
 
-  chmod 600 "$NETPLAN_FILE"
-  netplan apply
+  apply_netplan_safe
   ok "IRAN multi-kharej configured"
 }
 
@@ -160,11 +201,9 @@ iran_single_kharej() {
   kharej_pub="$(ask_ipv4 "Kharej public IPv4")"
 
   backup_netplan
-  cat > "$NETPLAN_FILE" <<EOF
-network:
-  version: 2
-  renderer: networkd
-  tunnels:
+  write_netplan_header
+
+  cat >> "$NETPLAN_FILE" <<EOF
     gre$idx:
       mode: gre
       local: $iran_pub
@@ -173,8 +212,8 @@ network:
         - 10.20.$idx.1/30
       mtu: 1476
 EOF
-  chmod 600 "$NETPLAN_FILE"
-  netplan apply
+
+  apply_netplan_safe
   ok "IRAN single-kharej configured"
 }
 
@@ -189,12 +228,7 @@ kharej_multi_iran() {
   [[ "$count" =~ ^[0-9]+$ ]] || die "Invalid number"
 
   backup_netplan
-  cat > "$NETPLAN_FILE" <<EOF
-network:
-  version: 2
-  renderer: networkd
-  tunnels:
-EOF
+  write_netplan_header
 
   for ((i=1;i<=count;i++)); do
     local iran_pub
@@ -210,8 +244,7 @@ EOF
 EOF
   done
 
-  chmod 600 "$NETPLAN_FILE"
-  netplan apply
+  apply_netplan_safe
   ok "KHAREJ multi-iran configured"
 }
 
@@ -227,11 +260,9 @@ kharej_single_iran() {
   iran_pub="$(ask_ipv4 "Iran public IPv4")"
 
   backup_netplan
-  cat > "$NETPLAN_FILE" <<EOF
-network:
-  version: 2
-  renderer: networkd
-  tunnels:
+  write_netplan_header
+
+  cat >> "$NETPLAN_FILE" <<EOF
     gre$idx:
       mode: gre
       local: $kharej_pub
@@ -240,8 +271,8 @@ network:
         - 10.20.$idx.2/30
       mtu: 1476
 EOF
-  chmod 600 "$NETPLAN_FILE"
-  netplan apply
+
+  apply_netplan_safe
   ok "KHAREJ single-iran configured"
 }
 
