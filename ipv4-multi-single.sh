@@ -380,6 +380,76 @@ EOF
   echo "Tunnel gre$idx is up"
 }
 
+create_kharej_multi() {
+  hr
+  echo -e "${BLUE}KHAREJ MODE (multi-iran)${NC}"
+  hr
+
+  local auto_ip kharej_pub count
+  auto_ip="$(get_public_ip || true)"
+  if [ -n "${auto_ip:-}" ]; then
+    kharej_pub="$(ask_ipv4 "Enter KHAREJ public IPv4 (auto-detected)" "$auto_ip")"
+  else
+    kharej_pub="$(ask_ipv4 "Enter KHAREJ public IPv4")"
+  fi
+
+  read -rp "How many IRAN servers? " count
+  [[ "$count" =~ ^[0-9]+$ ]] || die "Invalid number"
+
+  backup_netplan
+
+  cat > "$NETPLAN_FILE" <<EOF
+network:
+  version: 2
+  renderer: networkd
+  tunnels:
+EOF
+
+  declare -a SUMMARY=()
+
+  for ((i=1;i<=count;i++)); do
+    echo
+    echo "Iran #$i"
+    local iran_pub
+    iran_pub="$(ask_ipv4 "  Enter IRAN public IPv4")"
+
+    local iran_gre="10.20.${i}.1/30"
+    local kharej_gre="10.20.${i}.2/30"
+
+    cat >> "$NETPLAN_FILE" <<EOF
+    gre$i:
+      mode: gre
+      local: $kharej_pub
+      remote: $iran_pub
+      addresses:
+        - $kharej_gre
+      mtu: 1476
+EOF
+
+    SUMMARY+=(
+"Iran #$i
+  Tunnel name     : gre$i
+  Public (Kharej) : $kharej_pub
+  Public (Iran)   : $iran_pub
+  Private (Kharej): $kharej_gre
+  Private (Iran)  : $iran_gre"
+    )
+  done
+
+  chmod 600 "$NETPLAN_FILE"
+  netplan apply
+
+  ok "KHAREJ configuration completed (multi-iran)"
+  echo -e "${YELLOW}On each IRAN server, create the matching tunnel index with:${NC}"
+  echo "  Private (Iran) should be 10.20.<index>.1/30"
+  echo "  Remote public should be this KHAREJ public IP: $kharej_pub"
+  echo
+  for s in "${SUMMARY[@]}"; do
+    echo
+    echo "$s"
+  done
+}
+
 main_menu() {
   ensure_reqs
 
@@ -390,34 +460,42 @@ main_menu() {
     echo -e "${BLUE}GRE / Netplan - IPv4 Tunnel Manager${NC}"
     hr
     echo "1) Create tunnels (Iran mode - multi kharej)"
-    echo "2) Create tunnel (Kharej mode)"
-    echo "3) Show tunnels"
-    echo "4) Delete tunnels"
+    echo "2) Create tunnel (Kharej mode - single Iran)"
+    echo "3) Create tunnels (Kharej mode - multi Iran)"
+    echo "4) Show tunnels"
+    echo "5) Delete tunnels"
     echo "0) Exit"
     read -rp "Select: " c
 
     case "$c" in
       1)
-      create_iran
-      read -rp "Press Enter to return..." _
-      ;;
+        create_iran
+        echo
+        read -rp "Press Enter to return..." _ || true
+        ;;
       2)
-      create_kharej
-      read -rp "Press Enter to return..." _
-      ;;
+        create_kharej
+        echo
+        read -rp "Press Enter to return..." _ || true
+        ;;
       3)
-      show_tunnels
-      echo
-      read -rp "Press Enter to return..." _
-      ;;
+        create_kharej_multi
+        echo
+        read -rp "Press Enter to return..." _ || true
+        ;;
       4)
-      delete_tunnel
-      read -rp "Press Enter to return..." _
-      ;;
+        show_tunnels
+        echo
+        read -rp "Press Enter to return..." _ || true
+        ;;
+      5)
+        delete_tunnel
+        echo
+        read -rp "Press Enter to return..." _ || true
+        ;;
       0) exit 0 ;;
       *) warn "Invalid choice"; sleep 1 ;;
     esac
-
   done
 }
 
