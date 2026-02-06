@@ -397,13 +397,27 @@ main_menu() {
     read -rp "Select: " c
 
     case "$c" in
-      1) create_iran ;;
-      2) create_kharej ;;
-      3) show_tunnels ;;
-      4) delete_tunnel ;;
+      1)
+      create_iran
+      read -rp "Press Enter to return..." _
+      ;;
+      2)
+      create_kharej
+      read -rp "Press Enter to return..." _
+      ;;
+      3)
+      show_tunnels
+      echo
+      read -rp "Press Enter to return..." _
+      ;;
+      4)
+      delete_tunnel
+      read -rp "Press Enter to return..." _
+      ;;
       0) exit 0 ;;
-      *) warn "Invalid choice" ;;
+      *) warn "Invalid choice"; sleep 1 ;;
     esac
+
   done
 }
 
