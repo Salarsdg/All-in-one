@@ -90,8 +90,8 @@ EOF
     echo "Kharej #$i"
     KHAREJ_PUB=$(ask_non_empty "  Enter kharej public IPv4: ")
 
-    IRAN_GRE="10.10.${i}.1/30"
-    KHAREJ_GRE="10.10.${i}.2/30"
+    IRAN_GRE="172.16.${i}.1/30"
+    KHAREJ_GRE="172.16.${i}.2/30"
 
     cat >> "$NETPLAN_FILE" <<EOF
     gre$i:
