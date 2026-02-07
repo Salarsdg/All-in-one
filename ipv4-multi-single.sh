@@ -139,7 +139,7 @@ elif [ "$ROLE" == "2" ]; then
 
   IRAN_PUB=$(ask_non_empty "Enter IRAN public IPv4: ")
 
-  KHAREJ_GRE="10.10.${IDX}.2/30"
+  KHAREJ_GRE="172.16.${IDX}.2/30"
 
   cat > "$NETPLAN_FILE" <<EOF
 network:
