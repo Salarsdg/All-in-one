@@ -90,8 +90,8 @@ EOF
     echo "Kharej #$i"
     KHAREJ_PUB=$(ask_non_empty "  Enter kharej public IPv4: ")
 
-    IRAN_GRE="172.16.${i}.1/30"
-    KHAREJ_GRE="172.16.${i}.2/30"
+    IRAN_GRE="10.10.${i}.1/30"
+    KHAREJ_GRE="10.10.${i}.2/30"
 
     cat >> "$NETPLAN_FILE" <<EOF
     gre$i:
@@ -139,7 +139,7 @@ elif [ "$ROLE" == "2" ]; then
 
   IRAN_PUB=$(ask_non_empty "Enter IRAN public IPv4: ")
 
-  KHAREJ_GRE="172.16.${IDX}.2/30"
+  KHAREJ_GRE="10.10.${IDX}.2/30"
 
   cat > "$NETPLAN_FILE" <<EOF
 network:
