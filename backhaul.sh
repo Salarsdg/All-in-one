@@ -16,7 +16,23 @@ read_tty() {
   value="$(echo "$value" | xargs)" # trim
   printf -v "$__var" "%s" "$value"
 }
+is_port_in_use() {
+  local p="$1"
+  # ss is usually available on Ubuntu
+  ss -lnt 2>/dev/null | awk '{print $4}' | grep -Eq "(:|\\])${p}$"
+}
 
+find_free_port_from() {
+  local start="$1"
+  local p="$start"
+  while is_port_in_use "$p"; do
+    p=$((p+1))
+    if [ "$p" -gt 65535 ]; then
+      die "No free port found starting from $start"
+    fi
+  done
+  echo "$p"
+}
 # ---------- config ----------
 BACKHAUL_URL="https://github.com/Musixal/Backhaul/releases/download/v0.7.2/backhaul_linux_amd64.tar.gz"
 ARCHIVE_NAME="backhaul_linux_amd64.tar.gz"
@@ -355,6 +371,10 @@ create_iran_config() {
   done
   [ "${#valid[@]}" -gt 0 ] || die "No valid ports provided."
 
+  local WEB_PORT
+  WEB_PORT="$(find_free_port_from 2060)"
+  echo "Selected web_port for this tunnel: $WEB_PORT"
+
   {
     echo "[server]"
     echo "bind_addr = \"0.0.0.0:$tunnel_port\""
@@ -366,7 +386,7 @@ create_iran_config() {
     echo "heartbeat = 40"
     echo "channel_size = 2048"
     echo "sniffer = false"
-    echo "web_port = 2060"
+    echo "web_port = $WEB_PORT"
     echo "sniffer_log = \"/root/backhaul.json\""
     echo "log_level = \"info\""
     echo "ports = ["
