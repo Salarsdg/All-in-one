@@ -143,19 +143,21 @@ print_tunnels_table() {
   local rows
   rows="$(list_tunnels || true)"
   if [ -z "$rows" ]; then
-    echo "No tunnels found."
+    echo "No tunnels found." >&2
     return 0
   fi
 
-  echo "Existing tunnels:"
-  echo "--------------------------------------------------------------"
-  printf "%-6s %-20s %-24s %-8s %-10s\n" "Index" "Service" "Config" "Mode" "State"
-  echo "--------------------------------------------------------------"
-  while IFS='|' read -r idx svc cfg mode state; do
-    [ -n "$idx" ] || continue
-    printf "%-6s %-20s %-24s %-8s %-10s\n" "$idx" "$svc" "$cfg" "$mode" "$state"
-  done <<< "$rows"
-  echo "--------------------------------------------------------------"
+  {
+    echo "Existing tunnels:"
+    echo "--------------------------------------------------------------"
+    printf "%-6s %-20s %-24s %-8s %-10s\n" "Index" "Service" "Config" "Mode" "State"
+    echo "--------------------------------------------------------------"
+    while IFS='|' read -r idx svc cfg mode state; do
+      [ -n "$idx" ] || continue
+      printf "%-6s %-20s %-24s %-8s %-10s\n" "$idx" "$svc" "$cfg" "$mode" "$state"
+    done <<< "$rows"
+    echo "--------------------------------------------------------------"
+  } >&2
 }
 
 write_service_file() {
