@@ -1,6 +1,13 @@
 #!/bin/bash
 set -euo pipefail
-
+read_tty() {
+  local prompt="$1"
+  local __var="$2"
+  local value=""
+  read -r -p "$prompt" value </dev/tty
+  value="$(echo "$value" | xargs)"
+  printf -v "$__var" "%s" "$value"
+}
 # =========================
 # Backhaul Multi-Tunnel Manager
 # - Install/ensure backhaul binary
