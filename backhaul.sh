@@ -375,10 +375,6 @@ create_iran_config() {
   done
   [ "${#valid[@]}" -gt 0 ] || die "No valid ports provided."
 
-  local WEB_PORT
-  WEB_PORT="$(find_free_port_from 2060)"
-  echo "Selected web_port for this tunnel: $WEB_PORT"
-
   {
     echo "[server]"
     echo "bind_addr = \"0.0.0.0:$tunnel_port\""
@@ -390,7 +386,6 @@ create_iran_config() {
     echo "heartbeat = 40"
     echo "channel_size = 2048"
     echo "sniffer = false"
-    echo "web_port = $WEB_PORT"
     echo "sniffer_log = \"/root/backhaul.json\""
     echo "log_level = \"info\""
     echo "ports = ["
