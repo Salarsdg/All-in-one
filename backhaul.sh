@@ -1,29 +1,23 @@
 #!/bin/bash
 set -euo pipefail
+
+# =========================
+# Backhaul Multi-Tunnel Manager
+# Works correctly even when executed via: bash <(curl -Ls URL)
+# because all user input is read from /dev/tty.
+# =========================
+
+# ---------- read from TTY (fix for bash <(curl ...)) ----------
 read_tty() {
   local prompt="$1"
   local __var="$2"
   local value=""
   read -r -p "$prompt" value </dev/tty
-  value="$(echo "$value" | xargs)"
+  value="$(echo "$value" | xargs)" # trim
   printf -v "$__var" "%s" "$value"
 }
-# =========================
-# Backhaul Multi-Tunnel Manager
-# - Install/ensure backhaul binary
-# - Create tunnels (configN.toml + backhaulN.service)
-# - Select a tunnel to manage:
-#   - View ports (Iran/server tunnels)
-#   - Add/Remove ports (Iran/server tunnels)
-#   - Change tunnel port
-#   - Change token
-#   - Change Iran IP/domain (Kharej/client tunnels)
-#   - Restart service
-#   - Show status
-#   - Show logs
-#   - Remove tunnel (service + config)
-# =========================
 
+# ---------- config ----------
 BACKHAUL_URL="https://github.com/Musixal/Backhaul/releases/download/v0.7.2/backhaul_linux_amd64.tar.gz"
 ARCHIVE_NAME="backhaul_linux_amd64.tar.gz"
 BIN_PATH="/root/backhaul"
@@ -115,8 +109,10 @@ list_tunnels() {
   local found=0
   for cfg in /root/config*.toml; do
     [ -e "$cfg" ] || continue
+
     local base
     base="$(basename "$cfg")"
+
     local idx="1"
     if [[ "$base" =~ ^config([0-9]+)\.toml$ ]]; then
       idx="${BASH_REMATCH[1]}"
@@ -130,6 +126,7 @@ list_tunnels() {
     svc="$(service_name_for_index "$idx")"
     local mode
     mode="$(detect_mode_from_config "$cfg")"
+
     local active="unknown"
     if systemctl list-unit-files --type=service | awk '{print $1}' | grep -qx "$svc"; then
       if systemctl is-active --quiet "$svc"; then active="active"; else active="inactive"; fi
@@ -240,16 +237,13 @@ server_add_port() {
 
   # Insert before closing bracket of ports array
   awk -v port="\""$p"="$p"\"," '
-    BEGIN{inports=0}
     {lines[NR]=$0}
     END{
-      # find ports block
       start=0; end=0
       for(i=1;i<=NR;i++){
         if(lines[i] ~ /^\s*ports\s*=\s*\[\s*$/) {start=i; break}
       }
       if(start==0){
-        # no ports block found; append a new one at end
         for(i=1;i<=NR;i++) print lines[i]
         print "ports = ["
         print port
@@ -260,12 +254,10 @@ server_add_port() {
         if(lines[i] ~ /^\s*\]\s*$/) {end=i; break}
       }
       if(end==0){
-        # malformed; just print as-is
         for(i=1;i<=NR;i++) print lines[i]
         exit
       }
 
-      # print up to line before end, then add port, then print end+rest
       for(i=1;i<end;i++) print lines[i]
       print port
       for(i=end;i<=NR;i++) print lines[i]
@@ -284,7 +276,6 @@ server_remove_port() {
     return 0
   fi
 
-  # Remove the exact mapping line for "p=p" with optional comma/spaces
   sed -i -E "/^\s*\"${p}=${p}\"\s*,?\s*$/d" "$cfg"
   echo "Removed port $p."
 }
@@ -294,12 +285,12 @@ ask_tunnel_port_and_token() {
   local __portvar="$1"
   local __tokenvar="$2"
 
-  read -p "Enter tunnel port (default 3080): " tp
+  read_tty "Enter tunnel port (default 3080): " tp
   tp="$(trim "$tp")"
   tp="${tp:-3080}"
   [[ "$tp" =~ ^[0-9]+$ ]] && [ "$tp" -ge 1 ] && [ "$tp" -le 65535 ] || die "Invalid tunnel port."
 
-  read -p "Enter token (default ezpz): " tok
+  read_tty "Enter token (default ezpz): " tok
   tok="$(trim "$tok")"
   tok="${tok:-ezpz}"
 
@@ -316,7 +307,7 @@ create_kharej_config() {
 
   local iran_addr=""
   while true; do
-    read -p "Enter Iran server IP or domain (required): " iran_addr
+    read_tty "Enter Iran server IP or domain (required): " iran_addr
     iran_addr="$(trim "$iran_addr")"
     [ -n "$iran_addr" ] && break
     echo "Iran server IP/domain cannot be empty. Please try again."
@@ -348,7 +339,7 @@ create_iran_config() {
   echo "IMPORTANT: Tunnel port must be the same as the Kharej server for this tunnel."
   local port_input=""
   while true; do
-    read -p "Enter ports to forward (comma separated, e.g. 443,2080): " port_input
+    read_tty "Enter ports to forward (comma separated, e.g. 443,2080): " port_input
     port_input="$(trim "$port_input")"
     [ -n "$port_input" ] && break
     echo "Ports list cannot be empty."
@@ -400,7 +391,7 @@ select_tunnel_index() {
 
   local idx=""
   while true; do
-    read -p "Enter tunnel index to manage (e.g. 1,2,3): " idx
+    read_tty "Enter tunnel index to manage (e.g. 1,2,3): " idx
     idx="$(trim "$idx")"
     [[ "$idx" =~ ^[0-9]+$ ]] || { echo "Invalid index."; continue; }
     local cfg
@@ -415,7 +406,7 @@ select_tunnel_index() {
 
 change_token() {
   local cfg="$1"
-  read -p "Enter new token (cannot be empty): " tok
+  read_tty "Enter new token (cannot be empty): " tok
   tok="$(trim "$tok")"
   [ -n "$tok" ] || die "Token cannot be empty."
   sed -i -E "s/^(\s*token\s*=\s*).*/\1\"$tok\"/" "$cfg"
@@ -426,14 +417,13 @@ change_tunnel_port() {
   local cfg="$1"
   local mode="$2"
 
-  read -p "Enter new tunnel port: " tp
+  read_tty "Enter new tunnel port: " tp
   tp="$(trim "$tp")"
   [[ "$tp" =~ ^[0-9]+$ ]] && [ "$tp" -ge 1 ] && [ "$tp" -le 65535 ] || die "Invalid tunnel port."
 
   if [ "$mode" = "iran" ]; then
     sed -i -E "s|^(\s*bind_addr\s*=\s*).*$|\1\"0.0.0.0:$tp\"|g" "$cfg"
   elif [ "$mode" = "kharej" ]; then
-    # replace port part of remote_addr keeping host
     local host
     host="$(awk -F\" '/^\s*remote_addr\s*=/ {print $2}' "$cfg" | awk -F: '{print $1}')"
     [ -n "$host" ] || die "Could not parse remote_addr host."
@@ -454,7 +444,7 @@ change_kharej_iran_addr() {
 
   local newhost=""
   while true; do
-    read -p "Enter new Iran IP/domain (required): " newhost
+    read_tty "Enter new Iran IP/domain (required): " newhost
     newhost="$(trim "$newhost")"
     [ -n "$newhost" ] && break
     echo "Iran server IP/domain cannot be empty."
@@ -476,7 +466,7 @@ remove_tunnel() {
   echo "This will remove:"
   echo "- Service: $svc_path"
   echo "- Config : $cfg"
-  read -p "Type YES to confirm: " confirm
+  read_tty "Type YES to confirm: " confirm
   confirm="$(trim "$confirm")"
   [ "$confirm" = "YES" ] || { echo "Cancelled."; return 0; }
 
@@ -503,8 +493,8 @@ main_menu() {
     echo ""
   } >&2
 
-  read -p "Select option: " opt
-  opt="$(echo "$opt" | xargs)"
+  read_tty "Select option: " opt
+  opt="$(trim "$opt")"
   echo "$opt"
 }
 
@@ -513,7 +503,7 @@ create_tunnel_flow() {
   echo "Create tunnel on this server as:"
   echo "1) Iran (server)"
   echo "2) Kharej (client)"
-  read -p "Select (1 or 2): " role
+  read_tty "Select (1 or 2): " role
   role="$(trim "$role")"
   case "$role" in
     1) ROLE="iran" ;;
@@ -585,7 +575,8 @@ manage_tunnels_flow() {
     echo "9) Remove this tunnel (service + config)"
     echo "0) Back"
     echo ""
-    read -p "Select option: " opt
+
+    read_tty "Select option: " opt
     opt="$(trim "$opt")"
 
     case "$opt" in
@@ -614,7 +605,7 @@ manage_tunnels_flow() {
         if [ "$mode" != "iran" ]; then
           echo "Not available for kharej/client tunnels."
         else
-          read -p "Enter port to add (1-65535): " p
+          read_tty "Enter port to add (1-65535): " p
           p="$(trim "$p")"
           [[ "$p" =~ ^[0-9]+$ ]] && [ "$p" -ge 1 ] && [ "$p" -le 65535 ] || { echo "Invalid port."; continue; }
           server_add_port "$cfg" "$p"
@@ -626,7 +617,7 @@ manage_tunnels_flow() {
         if [ "$mode" != "iran" ]; then
           echo "Not available for kharej/client tunnels."
         else
-          read -p "Enter port to remove (1-65535): " p
+          read_tty "Enter port to remove (1-65535): " p
           p="$(trim "$p")"
           [[ "$p" =~ ^[0-9]+$ ]] && [ "$p" -ge 1 ] && [ "$p" -le 65535 ] || { echo "Invalid port."; continue; }
           server_remove_port "$cfg" "$p"
