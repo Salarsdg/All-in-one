@@ -483,16 +483,19 @@ remove_tunnel() {
 
 # ---------- main menus ----------
 main_menu() {
-  echo ""
-  echo "Backhaul Multi-Tunnel Manager"
-  echo "--------------------------------"
-  echo "1) Create a new tunnel"
-  echo "2) Manage existing tunnels"
-  echo "3) List tunnels"
-  echo "0) Exit"
-  echo ""
+  {
+    echo ""
+    echo "Backhaul Multi-Tunnel Manager"
+    echo "--------------------------------"
+    echo "1) Create a new tunnel"
+    echo "2) Manage existing tunnels"
+    echo "3) List tunnels"
+    echo "0) Exit"
+    echo ""
+  } >&2
+
   read -p "Select option: " opt
-  opt="$(trim "$opt")"
+  opt="$(echo "$opt" | xargs)"
   echo "$opt"
 }
 
