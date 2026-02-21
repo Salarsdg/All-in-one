@@ -144,11 +144,15 @@ list_tunnels() {
     mode="$(detect_mode_from_config "$cfg")"
 
     local active="unknown"
-    if systemctl list-unit-files --type=service | awk '{print $1}' | grep -qx "$svc"; then
-      if systemctl is-active --quiet "$svc"; then active="active"; else active="inactive"; fi
+if systemctl status "$svc" >/dev/null 2>&1; then
+    if systemctl is-active --quiet "$svc"; then
+        active="active"
     else
-      active="not-installed"
+        active="inactive"
     fi
+else
+    active="not-installed"
+fi
 
     echo "${idx}|${svc}|${cfg}|${mode}|${active}"
     found=1
