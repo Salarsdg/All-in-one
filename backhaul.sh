@@ -95,8 +95,8 @@ ensure_backhaul_binary() {
 
   echo "Extracting..."
  cd /root
- tar -xzvf "$ARCHIVE_NAME"
- rm -f backhaul.tar.gz
+tar -xzvf "$ARCHIVE_NAME" -C /
+rm -f "$ARCHIVE_NAME"
 
   # Find extracted binary (usually ./backhaul)
   if [ -f "./backhaul" ]; then
