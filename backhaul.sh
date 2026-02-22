@@ -96,10 +96,24 @@ ensure_backhaul_binary() {
   echo "Extracting..."
   tar -xzf "$ARCHIVE_NAME"
 
+  # Find extracted binary (usually ./backhaul)
   if [ -f "./backhaul" ]; then
-    mv -f ./backhaul "$BIN_PATH"
-    chmod +x "$BIN_PATH"
-    echo "Installed binary to $BIN_PATH"
+    # If we are already in /root and ./backhaul == /root/backhaul, do not mv
+    local src dst
+    src="$(readlink -f ./backhaul)"
+    dst="$(readlink -f "$BIN_PATH")"
+
+    if [ "$src" = "$dst" ]; then
+      chmod +x "$BIN_PATH"
+      echo "Backhaul binary already in place at $BIN_PATH"
+    else
+      mv -f ./backhaul "$BIN_PATH"
+      chmod +x "$BIN_PATH"
+      echo "Installed binary to $BIN_PATH"
+    fi
+  elif [ -f "$BIN_PATH" ]; then
+    chmod +x "$BIN_PATH" || true
+    echo "Backhaul binary found at $BIN_PATH"
   else
     die "Backhaul binary not found after extraction."
   fi
