@@ -36,7 +36,7 @@ find_free_port_from() {
 # ---------- config ----------
 BACKHAUL_URL="https://github.com/Salarsdg/All-in-one/releases/download/v1.0/backhaul.tar.gz"
 ARCHIVE_NAME="backhaul.tar.gz"
-BIN_PATH="/root/backhaul"
+BIN_PATH="/root/backhaul-core"
 SYSTEMD_DIR="/etc/systemd/system"
 
 # ---------- helpers ----------
