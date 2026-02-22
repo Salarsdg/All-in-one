@@ -90,34 +90,23 @@ ensure_backhaul_binary() {
   fi
 
   echo "Backhaul binary not found at $BIN_PATH"
-  echo "Downloading Backhaul..."
-  wget -q --show-progress "$BACKHAUL_URL" -O "$ARCHIVE_NAME"
+  echo "Downloading prebuilt backhaul package..."
 
-  echo "Extracting..."
+  cd /root
 
-tar -xzvf "$ARCHIVE_NAME" -C /
-rm -f "$ARCHIVE_NAME"
+  wget -q --show-progress \
+    https://github.com/Salarsdg/All-in-one/releases/download/v1.0/backhaul.tar.gz \
+    -O backhaul.tar.gz
 
-  # Find extracted binary (usually ./backhaul)
-  if [ -f "./backhaul" ]; then
-    # If we are already in /root and ./backhaul == /root/backhaul, do not mv
-    local src dst
-    src="$(readlink -f ./backhaul)"
-    dst="$(readlink -f "$BIN_PATH")"
+  echo "Extracting package..."
+  tar -xzf backhaul.tar.gz -C /
 
-    if [ "$src" = "$dst" ]; then
-      chmod +x "$BIN_PATH"
-      echo "Backhaul binary already in place at $BIN_PATH"
-    else
-      mv -f ./backhaul "$BIN_PATH"
-      chmod +x "$BIN_PATH"
-      echo "Installed binary to $BIN_PATH"
-    fi
-  elif [ -f "$BIN_PATH" ]; then
-    chmod +x "$BIN_PATH" || true
-    echo "Backhaul binary found at $BIN_PATH"
+  rm -f backhaul.tar.gz
+
+  if [ -x "$BIN_PATH" ]; then
+    echo "Backhaul installed successfully at $BIN_PATH"
   else
-    die "Backhaul binary not found after extraction."
+    die "Backhaul installation failed. Binary not found at $BIN_PATH"
   fi
 }
 
