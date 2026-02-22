@@ -34,7 +34,7 @@ find_free_port_from() {
   echo "$p"
 }
 # ---------- config ----------
-BACKHAUL_URL="https://github.com/Musixal/Backhaul/releases/download/v0.7.2/backhaul_linux_amd64.tar.gz"
+BACKHAUL_URL="https://github.com/Salarsdg/All-in-one/releases/download/v1.0/backhaul.tar.gz"
 ARCHIVE_NAME="backhaul_linux_amd64.tar.gz"
 BIN_PATH="/root/backhaul"
 SYSTEMD_DIR="/etc/systemd/system"
@@ -212,7 +212,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/root/backhaul -c $cfg_path
+ExecStart=/root/backhaul-core/backhaul_premium -c $cfg_path
 Restart=always
 RestartSec=3
 LimitNOFILE=1048576
