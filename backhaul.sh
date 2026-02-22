@@ -94,7 +94,7 @@ ensure_backhaul_binary() {
   wget -q --show-progress "$BACKHAUL_URL" -O "$ARCHIVE_NAME"
 
   echo "Extracting..."
- cd /root
+
 tar -xzvf "$ARCHIVE_NAME" -C /
 rm -f "$ARCHIVE_NAME"
 
