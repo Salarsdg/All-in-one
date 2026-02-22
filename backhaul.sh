@@ -35,7 +35,7 @@ find_free_port_from() {
 }
 # ---------- config ----------
 BACKHAUL_URL="https://github.com/Salarsdg/All-in-one/releases/download/v1.0/backhaul.tar.gz"
-ARCHIVE_NAME="backhaul_linux_amd64.tar.gz"
+ARCHIVE_NAME="backhaul.tar.gz"
 BIN_PATH="/root/backhaul"
 SYSTEMD_DIR="/etc/systemd/system"
 
@@ -94,7 +94,9 @@ ensure_backhaul_binary() {
   wget -q --show-progress "$BACKHAUL_URL" -O "$ARCHIVE_NAME"
 
   echo "Extracting..."
-  tar -xzf "$ARCHIVE_NAME"
+ cd /root
+ tar -xzvf "$ARCHIVE_NAME" -C
+ rm -f backhaul.tar.gz
 
   # Find extracted binary (usually ./backhaul)
   if [ -f "./backhaul" ]; then
