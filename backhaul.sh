@@ -350,7 +350,6 @@ dial_timeout = 10
 nodelay = true
 retry_interval = 3
 sniffer = false
-web_port = 2060
 sniffer_log = "/root/backhaul.json"
 log_level = "info"
 EOF
